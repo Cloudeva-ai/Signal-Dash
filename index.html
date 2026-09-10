@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Signal Dash - A CloudEVA Game</title>
+    <meta
+      name="description"
+      content="An endless CloudEVA browser platform runner where Eva collects cloud decision signals across governance, cost, and risk zones to reach 1000 points."
+    >
+    <meta name="theme-color" content="#0f1720">
+    <meta property="og:title" content="Signal Dash">
+    <meta property="og:description" content="Run as Eva, collect cloud decision signals, and reach 1000 points across governance, cost, and risk zones.">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="preload" as="image" href="./mascot/Eva_Idle.png">
+    <link rel="preload" as="image" href="./mascot/Mascot_Front_Look.png">
+    <link rel="stylesheet" href="./src/styles.css?v=20260910-signaldash-v1">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <a class="brand" href="#gameCanvas" aria-label="Signal Dash home">
+          <span class="pixel-logo" aria-hidden="true">E</span>
+          <span>
+            <strong>Signal Dash</strong>
+            <small>Endless run to 1000 points</small>
+          </span>
+        </a>
+        <div class="top-actions">
+          <button id="pauseButton" type="button">Pause</button>
+          <button id="restartButton" type="button">Restart</button>
+        </div>
+      </header>
+
+      <section class="game-shell" aria-label="Signal Dash game">
+        <div class="hud" aria-label="Game status">
+          <div>
+            <span>Zone</span>
+            <strong id="levelName">Governance Run</strong>
+          </div>
+          <div>
+            <span>Signals</span>
+            <strong id="signalCount">0 / 100</strong>
+          </div>
+          <div>
+            <span>EVA Score</span>
+            <strong id="trustScore">0 / 1000</strong>
+          </div>
+          <div>
+            <span>Lives</span>
+            <strong id="lifeCount">3</strong>
+          </div>
+        </div>
+
+        <div
+          class="score-track"
+          role="progressbar"
+          aria-label="Progress to 1000 points"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+        >
+          <span id="scoreProgress"></span>
+        </div>
+
+        <div class="mission-track" aria-label="EVA decision flow">
+          <span data-phase="0"><strong>Explain</strong> Governance signals</span>
+          <span data-phase="1"><strong>Verify</strong> Cost and budget</span>
+          <span data-phase="2"><strong>Advise</strong> Risk and approval</span>
+        </div>
+
+        <div class="canvas-frame">
+          <canvas id="gameCanvas" width="960" height="540" aria-label="Playable CloudEVA retro platform game"></canvas>
+          <div class="story-modal" id="storyModal">
+            <div class="story-copy">
+              <p class="eyebrow" id="storyKicker">Mission Brief</p>
+              <h1 id="storyTitle">Signal Dash</h1>
+              <p id="storyText"></p>
+              <button id="storyAction" type="button">Start the run</button>
+              <a id="storyCta" class="story-cta" href="https://cloudeva.ai/" hidden>Explore CloudEVA</a>
+            </div>
+            <div class="modal-art">
+              <img class="modal-hero" id="modalHero" alt="">
+              <img class="modal-mascot" id="modalMascot" src="./mascot/Mascot_Front_Look.png" alt="CloudEVA mascot Eva" decoding="async">
+            </div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button type="button" data-control="left" aria-label="Move left">Left</button>
+          <button type="button" data-control="right" aria-label="Move right">Right</button>
+          <button type="button" data-control="jump" aria-label="Jump">Jump</button>
+          <button type="button" data-control="interact" aria-label="Interact">Talk</button>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <span>CloudEVA browser game. No cloud upload. Progress stays in this page session.</span>
+        <a href="https://cloudeva.ai/" rel="noopener">Content inspired by Cloudeva.ai</a>
+      </footer>
+    </main>
+
+    <script src="./src/story.js?v=20260910-signaldash-v1"></script>
+    <script src="./src/levels.js?v=20260910-signaldash-v1"></script>
+    <script src="./src/game.js?v=20260910-signaldash-v1"></script>
+    <script src="./src/main.js?v=20260910-signaldash-v1"></script>
+  </body>
+</html>

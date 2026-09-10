@@ -1,0 +1,17 @@
+{
+  "name": "Signal Dash",
+  "short_name": "Signal Dash",
+  "description": "An endless CloudEVA runner: collect 100 cloud decision signals for 1000 points across governance, cost, and risk zones.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f1720",
+  "theme_color": "#0f1720",
+  "icons": [
+    {
+      "src": "./mascot/Mascot_Front_Look.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

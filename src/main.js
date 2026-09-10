@@ -1,0 +1,194 @@
+const canvas = document.querySelector("#gameCanvas");
+const modal = document.querySelector("#storyModal");
+const storyKicker = document.querySelector("#storyKicker");
+const storyTitle = document.querySelector("#storyTitle");
+const storyText = document.querySelector("#storyText");
+const storyAction = document.querySelector("#storyAction");
+const storyCta = document.querySelector("#storyCta");
+const modalHero = document.querySelector("#modalHero");
+const modalMascot = document.querySelector("#modalMascot");
+const pauseButton = document.querySelector("#pauseButton");
+const restartButton = document.querySelector("#restartButton");
+
+const ui = {
+  levelName: document.querySelector("#levelName"),
+  signalCount: document.querySelector("#signalCount"),
+  trustScore: document.querySelector("#trustScore"),
+  lifeCount: document.querySelector("#lifeCount"),
+  phases: Array.from(document.querySelectorAll("[data-phase]")),
+  progressBar: document.querySelector("#scoreProgress"),
+  onZoneChange: null,
+  onProgress: null,
+  showStory(story) {
+    storyKicker.textContent = story.kicker;
+    storyTitle.textContent = story.title;
+    storyText.textContent = story.body;
+    storyAction.textContent = story.action || "Continue";
+    storyAction.hidden = Boolean(story.actionHref);
+    storyCta.hidden = !story.actionHref;
+    restartButton.disabled = Boolean(story.actionHref);
+    pauseButton.disabled = Boolean(story.actionHref);
+    if (story.actionHref) {
+      storyCta.href = story.actionHref;
+      storyCta.textContent = story.action;
+    }
+    if (story.heroSrc) {
+      modalHero.src = story.heroSrc;
+      modalHero.alt = story.heroAlt || "";
+      modalHero.classList.add("is-visible");
+    } else {
+      modalHero.removeAttribute("src");
+      modalHero.alt = "";
+      modalHero.classList.remove("is-visible");
+    }
+    modalMascot.classList.toggle("is-visible", Boolean(story.showMascot));
+    modal.classList.add("is-open");
+  },
+  hideStory() {
+    modal.classList.remove("is-open");
+  },
+};
+
+const game = new window.CloudQuestGame(canvas, ui);
+const heroSprites = {};
+const loadedHeroThemes = new Set();
+const MASCOT_POSES = {
+  idle: "./mascot/Eva_Idle.png",
+  run: "./mascot/Eva_Run.png",
+  jump: "./mascot/Eva_Jump.png",
+  victory: "./mascot/mascot_celebrating_cutout.png",
+};
+
+// Eva wears the same poses in every zone; the zone only changes the palette.
+const ZONE_ORDER = window.RCQ_ZONES.map((zone) => zone.id);
+const HERO_SOURCES = Object.fromEntries(ZONE_ORDER.map((id) => [id, MASCOT_POSES]));
+
+function loadMascotSprites() {
+  const sprites = {
+    front: new Image(),
+    side: new Image(),
+    celebrating: new Image(),
+  };
+
+  sprites.front.src = "./mascot/Mascot_Front_Look.png";
+  sprites.side.src = "./mascot/Eva_Run.png";
+  sprites.celebrating.src = "./mascot/mascot_celebrating_cutout.png";
+
+  Object.values(sprites).forEach((sprite) => {
+    sprite.addEventListener("load", () => game.setPetSprites(sprites), { once: true });
+  });
+}
+
+function loadHeroTheme(zoneId) {
+  if (loadedHeroThemes.has(zoneId) || !HERO_SOURCES[zoneId]) return;
+
+  loadedHeroThemes.add(zoneId);
+  heroSprites[zoneId] = heroSprites[zoneId] || {};
+
+  Object.entries(HERO_SOURCES[zoneId]).forEach(([pose, src]) => {
+    const sprite = new Image();
+    sprite.decoding = "async";
+    sprite.addEventListener("load", () => game.setHeroSprites(heroSprites), { once: true });
+    heroSprites[zoneId][pose] = sprite;
+    sprite.src = src;
+  });
+}
+
+function loadCurrentAndNextHeroTheme(zoneId) {
+  loadHeroTheme(zoneId);
+  const nextZone = ZONE_ORDER[ZONE_ORDER.indexOf(zoneId) + 1];
+  if (nextZone) {
+    window.setTimeout(() => loadHeroTheme(nextZone), 900);
+  }
+}
+
+loadMascotSprites();
+ui.onZoneChange = loadCurrentAndNextHeroTheme;
+ui.onProgress = (ratio) => {
+  if (!ui.progressBar) return;
+  const pct = Math.max(0, Math.min(1, ratio)) * 100;
+  ui.progressBar.style.width = `${pct}%`;
+  ui.progressBar.parentElement?.setAttribute("aria-valuenow", String(Math.round(pct)));
+};
+loadCurrentAndNextHeroTheme(ZONE_ORDER[0]);
+ui.showStory(window.RCQ_STORY.intro);
+game.render();
+
+storyAction.addEventListener("click", () => {
+  ui.hideStory();
+  // The only mid-run screen left is game over, which starts a fresh run.
+  if (game.gameOver) {
+    pauseButton.textContent = "Pause";
+    game.restart();
+    ui.hideStory();
+    game.startLevel();
+    return;
+  }
+  game.startLevel();
+});
+
+pauseButton.addEventListener("click", () => {
+  game.pause();
+  pauseButton.textContent = game.paused ? "Resume" : "Pause";
+});
+
+restartButton.addEventListener("click", () => {
+  pauseButton.textContent = "Pause";
+  game.restart();
+});
+
+const keyMap = {
+  ArrowLeft: "left",
+  KeyA: "left",
+  ArrowRight: "right",
+  KeyD: "right",
+  ArrowUp: "jump",
+  Space: "jump",
+  KeyW: "jump",
+  KeyE: "interact",
+  Enter: "interact",
+};
+
+window.addEventListener("keydown", (event) => {
+  const key = keyMap[event.code];
+  if (!key) return;
+  event.preventDefault();
+  game.setKey(key, true);
+});
+
+window.addEventListener("keyup", (event) => {
+  const key = keyMap[event.code];
+  if (!key) return;
+  event.preventDefault();
+  game.setKey(key, false);
+});
+
+document.querySelectorAll("[data-control]").forEach((button) => {
+  const control = button.dataset.control;
+  const start = (event) => {
+    event.preventDefault();
+    button.setPointerCapture(event.pointerId);
+    game.setKey(control, true);
+  };
+  const end = (event) => {
+    event.preventDefault();
+    game.setKey(control, false);
+  };
+  button.addEventListener("pointerdown", start);
+  button.addEventListener("pointerup", end);
+  button.addEventListener("pointercancel", end);
+  button.addEventListener("lostpointercapture", end);
+});
+
+function releaseControls() {
+  Object.keys(keyMap).forEach((code) => game.setKey(keyMap[code], false));
+}
+
+window.addEventListener("blur", releaseControls);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    releaseControls();
+    game.pause(false);
+    pauseButton.textContent = "Resume";
+  }
+});
