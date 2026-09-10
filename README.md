@@ -107,8 +107,11 @@ node qa/touch-check.cjs    # simultaneous touch controls and cleanup
     world-check.cjs
     motion-check.cjs
     touch-check.cjs
+  assets/           coin and power sprites (tools/make_assets.py)
   mascot/           Eva sprite poses
   docs/             sprite generation notes
+  tools/
+    make_assets.py  regenerates assets/ with Pillow
 ```
 
 ## Deployment

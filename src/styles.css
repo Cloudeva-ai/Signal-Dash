@@ -395,14 +395,44 @@ button:disabled { opacity: 0.45; cursor: default; }
     gap: 8px;
   }
 
-  .hud {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 7px;
+  /* Overrides the shared .topbar/.footer column stacking above: keeping the
+     brand and buttons on one row hands about 100px back to the canvas. The
+     footer stays stacked, since it sits below the fold either way. */
+  .topbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
   }
 
-  .mission-track {
+  .top-actions button {
+    min-height: 40px;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+
+  .brand small {
+    font-size: 0.7rem;
+  }
+
+  .hud {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
+  }
+
+  .hud span {
+    font-size: 0.7rem;
+  }
+
+  .hud strong {
+    font-size: 0.98rem;
+  }
+
+  /* On a phone these three panels truncate to "Govern..." / "Cost and ...",
+     so they cost about 90px of canvas to say nothing. The HUD already names
+     the current zone, and the progress bar already shows the stage. */
+  .mission-track {
+    display: none;
   }
 
   .mission-track span {
@@ -412,7 +442,7 @@ button:disabled { opacity: 0.45; cursor: default; }
   }
 
   .hud div {
-    padding: 8px 9px;
+    padding: 5px 8px;
   }
 
   .hud div:first-child {
@@ -509,10 +539,23 @@ button:disabled { opacity: 0.45; cursor: default; }
 @media (orientation: landscape) and (max-height: 500px) {
   .shell { width: 100%; padding: 6px max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left)); }
   .topbar, .mission-track, .footer { display: none; }
+
+  /* Single-line HUD. Stacked label-over-value measured 66px in a 390px-tall
+     viewport, which was most of the reason the controls fell below the fold. */
   .hud { grid-template-columns: 2fr 1fr 1fr 1fr; gap: 4px; }
+  .hud div { padding: 3px 6px; display: flex; align-items: baseline; gap: 6px; }
   .hud div:first-child { grid-column: auto; }
-  .hud div { padding: 3px 6px; }
-  .canvas-frame { width: min(100%, calc((100svh - 120px) * 16 / 9)); margin: auto; }
+  .hud div strong { display: inline; }
+
+  .game-shell { gap: 4px; }
+
+  /* Cap the canvas by the height left over after the chrome, so it stays
+     fully visible and the controls stay reachable without scrolling.
+     Measured chrome at 390px tall: hud 45 + score track 14 + controls 58 +
+     row gaps 12 + shell padding 12 = 141. The 165 here leaves slack for a
+     taller hud on wider phones. */
+  .canvas-frame { width: min(100%, calc((100svh - 165px) * 16 / 9)); margin: 0 auto; }
+
   .controls { position: static; padding: 3px; margin-top: 4px; }
   .controls button { min-height: 48px; }
   .story-modal { position: fixed; inset: 8px; z-index: 20; max-height: calc(100svh - 16px); overflow: auto; }

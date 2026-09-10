@@ -8,6 +8,7 @@ class CloudQuestGame {
     this.dpr = 1;
     this.petSprites = {};
     this.heroSprites = {};
+    this.itemSprites = {};
     this.keys = { left: false, right: false, jump: false, interact: false };
     this.world = window.RCQ_WORLD;
     this.zones = window.RCQ_ZONES;
@@ -52,6 +53,11 @@ class CloudQuestGame {
 
   setHeroSprites(sprites) {
     this.heroSprites = sprites || {};
+    this.render();
+  }
+
+  setItemSprites(sprites) {
+    this.itemSprites = sprites || {};
     this.render();
   }
 
@@ -556,7 +562,6 @@ class CloudQuestGame {
     ctx.save();
     ctx.translate(-Math.round(this.cameraX), 0);
     this.drawPlatforms(ctx, t);
-    this.drawProps(ctx, t);
     this.drawCollectibles(ctx, t);
     this.drawHazards(ctx, t);
     this.drawNpc(ctx, t);
@@ -575,11 +580,12 @@ class CloudQuestGame {
     skyGradient.addColorStop(1, "rgba(0,0,0,0.14)");
     ctx.fillStyle = skyGradient;
     ctx.fillRect(0, 0, this.width, this.height);
+    // Parallax cloud bank. These were previously two offset rectangles, which
+    // read as hard T shapes rather than scenery.
     ctx.fillStyle = t.far;
     for (let i = 0; i < 8; i += 1) {
       const x = (i * 210 - (this.cameraX * 0.25) % 210) - 80;
-      this.rect(ctx, x, 92 + (i % 2) * 34, 88, 28);
-      this.rect(ctx, x + 24, 70 + (i % 2) * 34, 42, 24);
+      this.drawCloud(ctx, x, 78 + (i % 2) * 34, 96, 34);
     }
     ctx.fillStyle = "rgba(255,255,255,0.12)";
     for (let x = -80; x < this.width + 120; x += 96) {
@@ -624,29 +630,44 @@ class CloudQuestGame {
 
   // Decorative props are placed on a fixed grid across the endless world and
   // drawn only for the window on screen.
-  drawProps(ctx, t) {
-    const step = 480;
-    const from = Math.floor((this.cameraX - step) / step) * step;
-    const to = this.cameraX + this.width + step;
-    ctx.fillStyle = t.accent;
-    for (let x = Math.max(250, from); x < to; x += step) {
-      this.rect(ctx, x, 404, 42, 40);
-      this.rect(ctx, x - 9, 390, 60, 18);
-    }
+  // Three overlapping ellipses, so a cloud reads as a soft mass instead of
+  // stacked boxes.
+  drawCloud(ctx, x, y, w, h) {
+    ctx.beginPath();
+    ctx.ellipse(x + w * 0.30, y + h * 0.60, w * 0.30, h * 0.55, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + w * 0.62, y + h * 0.48, w * 0.26, h * 0.70, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + w * 0.50, y + h * 0.78, w * 0.48, h * 0.44, 0, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   drawCollectibles(ctx) {
+    const sprite = this.itemSprites.coin;
+    const hasArt = sprite?.complete && sprite.naturalWidth > 0;
+
     for (const item of this.collectibles) {
       if (item.taken) continue;
       if (item.x + 38 < this.cameraX - 40 || item.x > this.cameraX + this.width + 40) continue;
-      ctx.fillStyle = "#ffd84d";
-      this.rect(ctx, item.x, item.y, 38, 38);
-      ctx.strokeStyle = "#081020";
-      ctx.lineWidth = 4;
-      ctx.strokeRect(item.x, item.y, 38, 38);
+
+      if (hasArt) {
+        ctx.drawImage(sprite, item.x, item.y, 38, 38);
+      } else {
+        // Vector fallback so a missing or still-loading sprite never leaves an
+        // invisible pickup the player cannot see to collect.
+        ctx.fillStyle = "#ffd84d";
+        this.rect(ctx, item.x, item.y, 38, 38);
+        ctx.strokeStyle = "#081020";
+        ctx.lineWidth = 4;
+        ctx.strokeRect(item.x, item.y, 38, 38);
+      }
+
+      // Centred rather than left-aligned, so the label sits on the round coin
+      // face instead of running over its edge.
+      // 9px keeps five wide characters ("OWNER") inside the coin face; 10px
+      // spilled over the rim.
+      const label = item.label.slice(0, 5);
       ctx.fillStyle = "#081020";
-      ctx.font = "700 10px Arial, sans-serif";
-      ctx.fillText(item.label.slice(0, 5), item.x + 5, item.y + 23);
+      ctx.font = "800 9px Arial, sans-serif";
+      ctx.fillText(label, item.x + 19 - ctx.measureText(label).width / 2, item.y + 23);
     }
   }
 
