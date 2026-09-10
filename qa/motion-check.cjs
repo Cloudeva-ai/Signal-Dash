@@ -88,14 +88,16 @@ assert.ok(startChunks >= 3, 'the opening screen must already have world built ah
 // A real player jumps at the ledge, so the autopilot does the same: run right,
 // and jump only when the surface underfoot is about to run out.
 //
-// Hazards are excluded here. Taking a hazard hit is gameplay -- they are meant
-// to need timing -- whereas falling through the floor means the generator
-// produced terrain that cannot be crossed. Lives are topped back up so one
-// hazard cannot cut the traversal short, and falls are counted instead.
+// This test is about terrain, not combat, so the runner is made invulnerable to
+// obstacles. Otherwise a hit knocks the player 140px back, the bot walks into
+// the same obstacle again, and the loop measures the bot's dodging rather than
+// whether the generated ground can be crossed. Falls still register, because
+// movePlayer reports them directly rather than through the hazard check.
 let falls = 0;
 const realDamage = game.damage.bind(game);
 game.damage = (text) => {
-  if (text.includes('fell')) falls += 1;
+  if (!text.includes('fell')) return; // obstacle hits are out of scope here
+  falls += 1;
   realDamage(text);
   game.lives = 3;
   game.gameOver = false;
@@ -116,8 +118,18 @@ const autopilot = () => {
   if (!p.grounded) return game.setKey('jump', false);
   const surface = surfaceUnderFoot();
   if (!surface) return game.setKey('jump', false);
+
   const runwayLeft = surface.x + surface.w - (p.x + p.w);
-  game.setKey('jump', runwayLeft <= LEDGE_MARGIN);
+  // Also hop obstacles coming up on the surface underfoot. Positions come from
+  // hazardBox rather than the template x, so a patrol is dodged where it
+  // actually is. Without this the bot walks into an obstacle, gets knocked
+  // back, and never makes progress -- which measures the bot, not the world.
+  const obstacle = game.hazards.some((h) => {
+    const box = game.hazardBox(h);
+    const ahead = box.x - (p.x + p.w);
+    return ahead > 0 && ahead < 80 && Math.abs(box.y + box.h - (p.y + p.h)) < 10;
+  });
+  game.setKey('jump', runwayLeft <= LEDGE_MARGIN || obstacle);
 };
 
 game.setKey('right', true);
@@ -279,3 +291,116 @@ assert.equal(game.finished, false);
 assert.equal(game.player.x, 64);
 assert.ok(game.chunks.length >= 3, 'restart must rebuild the world');
 console.log('PASS: restart resets score, lives, zone and world');
+
+// --- obstacle kinds -------------------------------------------------------
+// Every kind must cost exactly one life and go through the same respawn, and a
+// patrol must stay inside the span the world check validated as safe ground.
+const chunkDefs = scope.window.RCQ_CHUNKS;
+const kinds = new Set();
+for (const c of chunkDefs) for (const h of c.hazards || []) kinds.add(h.kind || 'static');
+assert.ok(kinds.has('static'), 'expected static obstacles');
+assert.ok(kinds.has('spike'), 'expected spike obstacles');
+assert.ok(kinds.has('patrol'), 'expected patrol obstacles');
+
+for (const kind of ['static', 'spike', 'patrol']) {
+  game = newGame();
+  game.startLevel();
+  const before = game.lives;
+  const player = game.player;
+
+  // Drop one obstacle of this kind straight onto the player.
+  game.hazards = [{
+    x: player.x, y: player.y + player.h - 28, w: 44, h: 28,
+    kind, span: kind === 'patrol' ? 60 : 0, speed: 60, phase: 0, type: 'noise', label: 'TEST',
+  }];
+  player.invuln = 0;
+  game.checkHazards(1 / 60);
+
+  assert.equal(game.lives, before - 1, `a ${kind} obstacle must cost exactly one life`);
+  assert.ok(player.invuln > 0, `a ${kind} hit must grant recovery time`);
+  assert.equal(player.grounded, true, `a ${kind} hit must respawn on solid ground`);
+  assert.equal(player.y, FLOOR_Y, `a ${kind} respawn must stand on the ground line`);
+}
+console.log(`PASS: all ${kinds.size} obstacle kinds cost exactly one life and respawn safely`);
+
+// A patrol's drawn/collided box must never leave its declared span, or it
+// could wander over a pit the world check cleared as safe.
+game = newGame();
+const patrol = { x: 500, y: 416, w: 44, h: 28, kind: 'patrol', span: 120, speed: 60, phase: 0 };
+let minX = Infinity;
+let maxX = -Infinity;
+for (let ms = 0; ms < 20000; ms += 50) {
+  scope.performance.now = () => ms;
+  const box = game.hazardBox(patrol);
+  minX = Math.min(minX, box.x);
+  maxX = Math.max(maxX, box.x);
+}
+scope.performance.now = () => 100;
+assert.ok(minX >= patrol.x - 0.01, `patrol went left of its span: ${minX} < ${patrol.x}`);
+assert.ok(
+  maxX <= patrol.x + patrol.span + 0.01,
+  `patrol went right of its span: ${maxX} > ${patrol.x + patrol.span}`,
+);
+assert.ok(maxX - minX > patrol.span * 0.9, 'a patrol must actually sweep most of its span');
+console.log(`PASS: a patrol sweeps ${Math.round(minX)}..${Math.round(maxX)}, inside its ${patrol.span}px span`);
+
+// --- respawn footing ------------------------------------------------------
+// A respawn point near a slab's right edge must clamp onto that slab, not fall
+// back to an earlier one. Getting this wrong teleported Eva hundreds of pixels
+// backwards, so recovery invulnerability expired before she reached whatever
+// hit her and one obstacle could take every life in a row.
+game = newGame();
+game.startLevel();
+const slabs = game.platforms
+  .filter(b => b.type === 'ground')
+  .sort((a, b) => a.x - b.x);
+const slab = slabs.find(s => s.w > 200);
+const nearEdge = slab.x + slab.w - 20; // inside the slab, less than a body from the edge
+
+const footing = game.findFooting(nearEdge);
+assert.ok(
+  footing.x >= slab.x && footing.x + game.player.w <= slab.x + slab.w,
+  `footing ${footing.x} must sit within the slab ${slab.x}..${slab.x + slab.w}`,
+);
+assert.ok(
+  nearEdge - footing.x < 60,
+  `footing must stay near the request (${nearEdge} -> ${footing.x}), not teleport backwards`,
+);
+assert.equal(footing.y, slab.y);
+
+// A point over a pit must still step back onto real ground.
+const pit = slabs.find((s, i) => slabs[i + 1] && slabs[i + 1].x > s.x + s.w);
+if (pit) {
+  const overPit = pit.x + pit.w + 40;
+  const back = game.findFooting(overPit);
+  const lands = slabs.some(s => back.x >= s.x && back.x + game.player.w <= s.x + s.w);
+  assert.ok(lands, `footing ${back.x} over a pit must land on a real slab`);
+}
+
+// One obstacle must not be able to take more than one life: after a hit the
+// respawn plus recovery time has to carry Eva past it.
+//
+// Run this on a synthetic flat floor with generation switched off. On real
+// terrain the walker would also meet pits, and a bot that never jumps dies to
+// falls instead, which measures the wrong thing entirely.
+game = newGame();
+game.startLevel();
+game.ensureWorld = () => {};
+game.platforms = [{ x: 0, y: world.groundY, w: 4000, h: world.groundH, type: 'ground' }];
+game.collectibles = [];
+game.npcs = [];
+game.worldMinX = 0;
+game.player.x = 64;
+game.player.y = FLOOR_Y;
+game.player.grounded = true;
+game.hazards = [{
+  x: 500, y: 416, w: 44, h: 28,
+  kind: 'static', span: 0, speed: 60, phase: 0, type: 'noise', label: 'TEST',
+}];
+
+game.setKey('right', true);
+for (let i = 0; i < 600; i++) game.update(1 / 60);
+game.setKey('right', false);
+assert.ok(game.player.x > 900, `expected to walk past the obstacle, stalled at ${Math.round(game.player.x)}`);
+assert.equal(game.lives, 2, `one obstacle must cost one life, but ${3 - game.lives} were lost`);
+console.log('PASS: respawn footing clamps to the slab, so one obstacle costs one life');

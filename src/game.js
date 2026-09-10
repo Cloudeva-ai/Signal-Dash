@@ -1,3 +1,10 @@
+// One message per obstacle kind, so a hit tells the player what caught them.
+const HAZARD_HIT = {
+  static: "Unresolved signal hit. Eva recovered the decision trail.",
+  spike: "Policy breach. That change went through unreviewed.",
+  patrol: "An unowned change caught you. Eva logged it and moved on.",
+};
+
 class CloudQuestGame {
   constructor(canvas, ui) {
     this.canvas = canvas;
@@ -182,6 +189,9 @@ class CloudQuestGame {
         y: hazard.y,
         w: hazard.w,
         h: hazard.h,
+        kind: hazard.kind || "static",
+        span: hazard.span || 0,
+        speed: hazard.speed || 60,
         type: zone.hazardType,
         label: zone.hazardLabels[(index + i) % zone.hazardLabels.length],
         phase: (index * 2 + i) * 0.8,
@@ -406,10 +416,10 @@ class CloudQuestGame {
     }
   }
 
-  // A 1-up every 200 points, capped so a careful player cannot bank an
-  // unlosable stack. Without this the run is effectively unfinishable: it takes
-  // a few minutes to reach 1000 and hazards are frequent enough that three
-  // lives run out long before the ending.
+  // A 1-up every 100 points, capped so a careful player cannot bank an
+  // unlosable stack. The rate is tied to obstacle density: at roughly 1.8
+  // obstacles per chunk a run takes a hit every few seconds, so three lives
+  // run out long before 1000. Raising density means raising this too.
   checkExtraLife() {
     while (this.trust >= this.lifeBonusAt) {
       if (this.lives < CloudQuestGame.MAX_LIVES) {
@@ -437,6 +447,34 @@ class CloudQuestGame {
     });
   }
 
+  // Single source of truth for where an obstacle is this frame. Collision and
+  // drawing both call this, so a moving obstacle can never be drawn somewhere
+  // other than where it actually hits.
+  hazardBox(hazard) {
+    const t = performance.now() / 1000 + hazard.phase;
+
+    if (hazard.kind === "patrol") {
+      // Ping-pong along the span, so the sweep stays inside the range the
+      // world checks validated as safe ground.
+      const period = (hazard.span * 2) / hazard.speed;
+      const p = (((t % period) + period) % period) / period;
+      const along = p < 0.5 ? p * 2 : 2 - p * 2;
+      return { x: hazard.x + along * hazard.span, y: hazard.y, w: hazard.w, h: hazard.h };
+    }
+
+    // Spikes are dead still: a bobbing spike reads as a bug.
+    if (hazard.kind === "spike") {
+      return { x: hazard.x, y: hazard.y, w: hazard.w, h: hazard.h };
+    }
+
+    return {
+      x: hazard.x,
+      y: hazard.y + Math.sin(t * 3.85) * 5,
+      w: hazard.w,
+      h: hazard.h,
+    };
+  }
+
   checkHazards(dt) {
     if (this.player.invuln > 0) {
       this.player.invuln -= dt;
@@ -444,14 +482,10 @@ class CloudQuestGame {
     }
 
     for (const hazard of this.hazards) {
-      const box = {
-        x: hazard.x,
-        y: hazard.y + Math.sin(performance.now() / 260 + hazard.phase) * 5,
-        w: hazard.w,
-        h: hazard.h,
-      };
-      if (this.intersects(this.player, box)) {
-        this.damage("Hazard hit. Eva recovered the decision trail.");
+      if (this.intersects(this.player, this.hazardBox(hazard))) {
+        // Every obstacle kind costs exactly one life and routes through the
+        // same respawn.
+        this.damage(HAZARD_HIT[hazard.kind] || HAZARD_HIT.static);
         break;
       }
     }
@@ -510,22 +544,37 @@ class CloudQuestGame {
     p.grounded = true;
   }
 
-  // Walks backwards from a point to find ground wide enough to stand on, so a
-  // respawn can never drop Eva straight back into a pit.
+  // Finds ground to stand on at or before a point, so a respawn can never drop
+  // Eva into a pit.
+  //
+  // The clamp matters more than it looks. This used to require the player to
+  // fit entirely inside a slab, so a point within a body-width of a slab's
+  // right edge matched nothing and fell back to a much earlier slab -- a
+  // several-hundred-pixel teleport backwards. Recovery invulnerability then
+  // ran out before Eva walked back to whatever hit her, so a single obstacle
+  // could take every life in a row.
   findFooting(fromX) {
+    const width = this.player.w;
     const ground = this.platforms
       .filter((block) => block.type === "ground")
       .sort((a, b) => a.x - b.x);
-    const under = ground.filter((block) => block.x <= fromX && block.x + block.w >= fromX + this.player.w);
-    if (under.length) return { x: fromX, y: under[under.length - 1].y };
 
-    const before = ground.filter((block) => block.x + block.w < fromX);
+    const on = ground.find((block) => fromX + width > block.x && fromX < block.x + block.w);
+    if (on) {
+      const first = on.x + 4;
+      const last = on.x + on.w - width - 4;
+      return { x: Math.min(Math.max(fromX, first), Math.max(first, last)), y: on.y };
+    }
+
+    // The point is over a pit, so step back to the near edge of the last slab.
+    const before = ground.filter((block) => block.x + block.w <= fromX);
     if (before.length) {
       const slab = before[before.length - 1];
-      return { x: slab.x + slab.w - this.player.w - 8, y: slab.y };
+      return { x: Math.max(slab.x + 4, slab.x + slab.w - width - 8), y: slab.y };
     }
-    const first = ground[0] || { x: this.worldMinX, y: this.world.groundY, w: 200 };
-    return { x: first.x + 16, y: first.y };
+
+    const fallback = ground[0] || { x: this.worldMinX, y: this.world.groundY, w: 200 };
+    return { x: fallback.x + 16, y: fallback.y };
   }
 
   flash(text, seconds = 1.4) {
@@ -672,19 +721,68 @@ class CloudQuestGame {
   }
 
   drawHazards(ctx, t) {
+    const body = t.hazardBody || (
+      // Zone-tinted body so obstacles read against each palette.
+      this.zone.id === "cost" ? "#9a5f00" : this.zone.id === "risk" ? "#7f1d3a" : "#e33b58"
+    );
+    const trim = this.zone.id === "risk" ? "#ffd84d" : t.accent;
+
     for (const hazard of this.hazards) {
-      if (hazard.x + hazard.w < this.cameraX - 40 || hazard.x > this.cameraX + this.width + 40) continue;
-      const y = hazard.y + Math.sin(performance.now() / 260 + hazard.phase) * 5;
-      ctx.fillStyle = hazard.type === "waste" ? "#9a5f00" : hazard.type === "risk" ? "#7f1d3a" : "#e33b58";
-      this.rect(ctx, hazard.x, y, hazard.w, hazard.h);
-      ctx.fillStyle = hazard.type === "risk" ? "#ffd84d" : t.accent;
-      this.rect(ctx, hazard.x + 8, y + 7, hazard.w - 16, 8);
-      if (hazard.label) {
+      const box = this.hazardBox(hazard);
+      if (box.x + box.w < this.cameraX - 40 || box.x > this.cameraX + this.width + 40) continue;
+
+      if (hazard.kind === "spike") {
+        this.drawSpikes(ctx, box, body, trim);
+        continue;
+      }
+
+      ctx.fillStyle = body;
+      this.rect(ctx, box.x, box.y, box.w, box.h);
+      ctx.fillStyle = trim;
+      this.rect(ctx, box.x + 8, box.y + 7, box.w - 16, 8);
+
+      if (hazard.kind === "patrol") {
+        // Two eyes facing the direction of travel, so a mover is obvious at a
+        // glance and reads differently from a fixed obstacle.
+        const facing = box.x > hazard.x + hazard.span / 2 ? 1 : -1;
+        ctx.fillStyle = "#fff7de";
+        const eye = box.x + box.w / 2 + facing * 6;
+        this.rect(ctx, eye - 5, box.y + 16, 4, 5);
+        this.rect(ctx, eye + 3, box.y + 16, 4, 5);
+      } else if (hazard.label) {
         ctx.fillStyle = "#fff7de";
         ctx.font = "800 9px Arial, sans-serif";
-        ctx.fillText(hazard.label, hazard.x + 5, y + 22);
+        ctx.fillText(hazard.label, box.x + 5, box.y + 22);
       }
     }
+  }
+
+  // A spike strip: a dark base with saw teeth. The teeth take the danger body
+  // colour rather than the zone accent, which in the governance palette is the
+  // same mint as the grass and made them vanish into the ground.
+  drawSpikes(ctx, box, body, trim) {
+    const teeth = Math.max(2, Math.round(box.w / 14));
+    const step = box.w / teeth;
+    const baseY = box.y + box.h - 7;
+
+    ctx.beginPath();
+    for (let i = 0; i < teeth; i += 1) {
+      const left = box.x + i * step;
+      ctx.moveTo(left, baseY);
+      ctx.lineTo(left + step / 2, box.y - 6);
+      ctx.lineTo(left + step, baseY);
+    }
+    ctx.closePath();
+    ctx.fillStyle = body;
+    ctx.fill();
+    ctx.strokeStyle = "#081020";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.fillStyle = "#081020";
+    this.rect(ctx, box.x - 2, baseY, box.w + 4, 7);
+    ctx.fillStyle = trim;
+    this.rect(ctx, box.x, baseY + 2, box.w, 2);
   }
 
   drawNpc(ctx) {
@@ -794,7 +892,7 @@ class CloudQuestGame {
   }
 }
 
-CloudQuestGame.MAX_LIVES = 5;
-CloudQuestGame.LIFE_BONUS_EVERY = 200;
+CloudQuestGame.MAX_LIVES = 8;
+CloudQuestGame.LIFE_BONUS_EVERY = 100;
 
 window.CloudQuestGame = CloudQuestGame;

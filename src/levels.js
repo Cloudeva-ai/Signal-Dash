@@ -128,6 +128,17 @@ window.RCQ_ZONES = [
 //      200px away from them. Wide crossings use ground-level islands, which
 //      have no underside to bonk.
 //
+// Obstacle kinds, all of which cost exactly one life:
+//   static  a bobbing signal blocker, the default
+//   spike   a still saw-tooth strip, narrower so it is quicker to clear
+//   patrol  walks back and forth along `span` at `speed` px/s
+//
+// Obstacles obey two more fairness rules, also enforced by the world check: an
+// obstacle may not sit under a platform (the jump over it would bonk the
+// underside and drop the player back onto it), and may not sit in the landing
+// band of a platform's right edge (running off is a committed fall, so that
+// hit is unavoidable). For a patrol both are checked across the whole sweep.
+//
 // `ground` slabs sit at groundY. `blocks` carry an explicit y.
 // `coins` and `hazards` are y-positioned by the template so they always rest on
 // a real surface. Labels and hazard types are filled in per zone at spawn time.
@@ -150,8 +161,8 @@ window.RCQ_CHUNKS = [
       { x: 400, y: 304 },
       { x: 690, y: 228 },
     ],
-    // Kept ahead of the tier1 block: walking off its edge at 470 lands at
-    // 526..594, so a hazard there would be unavoidable.
+    // The only slot the blocks leave: everything further right is either under
+    // a platform or inside one of their landing bands.
     hazards: [{ x: 190, y: 416, w: 44, h: 28 }],
   },
   {
@@ -166,7 +177,7 @@ window.RCQ_CHUNKS = [
       { x: 800, y: 304 },
       { x: 850, y: 304 },
     ],
-    hazards: [],
+    hazards: [{ x: 200, y: 416, w: 44, h: 28 }],
   },
   {
     id: "stair-up",
@@ -184,7 +195,7 @@ window.RCQ_CHUNKS = [
       { x: 520, y: 228 },
       { x: 730, y: 304 },
     ],
-    hazards: [],
+    hazards: [{ x: 170, y: 416, w: 44, h: 28 }],
   },
   {
     id: "island-hop",
@@ -196,10 +207,12 @@ window.RCQ_CHUNKS = [
     coins: [
       { x: 200, y: 400 },
       { x: 470, y: 400 },
-      { x: 720, y: 400 },
       { x: 880, y: 400 },
     ],
-    hazards: [],
+    hazards: [
+      { x: 100, y: 416, w: 44, h: 28 },
+      { x: 700, y: 416, w: 44, h: 28, kind: "patrol", span: 100, speed: 55 },
+    ],
   },
   {
     id: "double-pit",
@@ -208,10 +221,14 @@ window.RCQ_CHUNKS = [
     blocks: [],
     coins: [
       { x: 150, y: 400 },
-      { x: 470, y: 400 },
+      { x: 560, y: 400 },
       { x: 830, y: 400 },
     ],
-    hazards: [],
+    hazards: [
+      { x: 80, y: 416, w: 44, h: 28 },
+      // Short span: the middle island is only 220px wide and a coin sits on it.
+      { x: 420, y: 416, w: 44, h: 28, kind: "patrol", span: 60, speed: 50 },
+    ],
   },
   {
     id: "high-road",
@@ -225,15 +242,13 @@ window.RCQ_CHUNKS = [
     ],
     coins: [
       { x: 100, y: 400 },
-      { x: 850, y: 400 },
+      { x: 740, y: 400 },
       { x: 380, y: 228 },
       { x: 480, y: 228 },
       { x: 580, y: 228 },
     ],
-    // No ground hazard here: the tier2 road spans 300..680, and the takeoff
-    // window for anything on the ground below it falls in that shadow, so the
-    // jump would bonk the road. The climb itself is this chunk challenge.
-    hazards: [],
+    // Past the road's right edge and clear of its landing band at 767..835.
+    hazards: [{ x: 860, y: 416, w: 44, h: 28 }],
     npc: { x: 780, y: 382 },
   },
   {
@@ -241,17 +256,18 @@ window.RCQ_CHUNKS = [
     weight: 2,
     ground: [{ x: 0, w: 960 }],
     // Only one block here. A second block around 360..500 would put its landing
-    // band at 556..624, right on top of the second hazard.
+    // band at 556..624, right on top of the second obstacle.
     blocks: [{ x: 620, y: 348, w: 140, type: "brick" }],
     coins: [
       { x: 130, y: 400 },
-      { x: 900, y: 400 },
+      { x: 840, y: 400 },
       { x: 660, y: 304 },
       { x: 720, y: 304 },
     ],
     hazards: [
       { x: 200, y: 416, w: 44, h: 28 },
       { x: 500, y: 416, w: 44, h: 28 },
+      { x: 920, y: 416, w: 28, h: 28, kind: "spike" },
     ],
   },
   {
@@ -276,6 +292,8 @@ window.RCQ_CHUNKS = [
   {
     id: "breather",
     weight: 1,
+    // Deliberately empty of obstacles: the run needs a rest beat between the
+    // obstacle courses or it reads as unrelenting rather than hard.
     ground: [{ x: 0, w: 960 }],
     blocks: [{ x: 430, y: 348, w: 200, type: "cloud" }],
     coins: [
@@ -286,5 +304,60 @@ window.RCQ_CHUNKS = [
     ],
     hazards: [],
     npc: { x: 220, y: 382 },
+  },
+  {
+    id: "noise-field",
+    weight: 2,
+    // Block-free by design. Platforms are what constrain obstacle placement,
+    // so the obstacle-heavy templates leave them out and get the whole floor
+    // to work with.
+    ground: [{ x: 0, w: 960 }],
+    blocks: [],
+    coins: [
+      { x: 100, y: 400 },
+      { x: 340, y: 400 },
+      { x: 600, y: 400 },
+      { x: 860, y: 400 },
+    ],
+    hazards: [
+      { x: 200, y: 416, w: 44, h: 28 },
+      { x: 460, y: 416, w: 44, h: 28 },
+      { x: 720, y: 416, w: 44, h: 28 },
+    ],
+  },
+  {
+    id: "patrol-yard",
+    weight: 2,
+    ground: [{ x: 0, w: 960 }],
+    blocks: [],
+    coins: [
+      { x: 100, y: 400 },
+      { x: 440, y: 400 },
+      { x: 780, y: 400 },
+    ],
+    hazards: [
+      { x: 200, y: 416, w: 44, h: 28, kind: "patrol", span: 120, speed: 60 },
+      { x: 560, y: 416, w: 44, h: 28, kind: "patrol", span: 120, speed: 70 },
+      { x: 860, y: 416, w: 44, h: 28 },
+    ],
+  },
+  {
+    id: "spike-row",
+    weight: 2,
+    ground: [{ x: 0, w: 960 }],
+    blocks: [],
+    coins: [
+      { x: 120, y: 400 },
+      { x: 350, y: 400 },
+      { x: 600, y: 400 },
+      { x: 850, y: 400 },
+    ],
+    // Narrower than a signal blocker, so the timing window is wider even
+    // though there are three of them.
+    hazards: [
+      { x: 220, y: 416, w: 28, h: 28, kind: "spike" },
+      { x: 470, y: 416, w: 28, h: 28, kind: "spike" },
+      { x: 720, y: 416, w: 28, h: 28, kind: "spike" },
+    ],
   },
 ];
