@@ -30,9 +30,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        # v4 targets Node 20, which the runners now force onto Node 24 and warn
+        # about. No inputs are passed here, so the bump carries no risk.
+        uses: actions/checkout@v7
       - name: Setup Pages
         uses: actions/configure-pages@v5
+        with:
+          # Pages was never enabled on this repo, so the first deploy failed
+          # with "Get Pages site failed ... verify that the repository has
+          # Pages enabled". This lets the workflow create and configure the
+          # Pages site itself using the pages:write permission granted above,
+          # rather than needing someone to flip it in repository settings.
+          enablement: true
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
