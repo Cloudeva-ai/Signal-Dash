@@ -36,11 +36,16 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
-          # Pages was never enabled on this repo, so the first deploy failed
-          # with "Get Pages site failed ... verify that the repository has
-          # Pages enabled". This lets the workflow create and configure the
-          # Pages site itself using the pages:write permission granted above,
-          # rather than needing someone to flip it in repository settings.
+          # Asks the action to create the Pages site if it is missing.
+          #
+          # Note this is NOT sufficient on its own for this repo. Creating a
+          # Pages site needs repository admin, and pages:write on GITHUB_TOKEN
+          # does not grant it, so the attempt came back "Create Pages site
+          # failed: Resource not accessible by integration". Pages has to be
+          # turned on once by an admin under Settings -> Pages, with the source
+          # set to GitHub Actions. After that this step only reads the existing
+          # site and the flag is a harmless no-op that self-heals if the site
+          # is ever removed.
           enablement: true
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
