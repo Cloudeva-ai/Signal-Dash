@@ -116,8 +116,19 @@ node qa/touch-check.cjs    # simultaneous touch controls and cleanup
 
 ## Deployment
 
-Pushing to `main` triggers `.github/workflows/static.yml`, which publishes the
-whole repository to GitHub Pages:
+In repository **Settings → Pages**, select **GitHub Actions** as the source.
+Pages must be enabled by a repository administrator; the workflow token cannot
+create the Pages site itself.
+
+Pushing to `main` triggers `.github/workflows/static.yml`. It runs the game
+checks and publishes only `index.html`, `manifest.webmanifest`, `.nojekyll`,
+`src/`, `assets/`, and `mascot/`. Tests, development tools, and documentation
+are excluded from the deployed site.
+
+To deploy manually, open **Actions → Deploy static content to Pages → Run
+workflow** and select `main`. Ensure repository Actions are enabled first.
+
+Site URL:
 
 <https://cloudeva-ai.github.io/Signal-Dash/>
 
