@@ -29,6 +29,7 @@ jobs:
           node qa/motion-check.cjs
           node qa/touch-check.cjs
           node qa/viewport-check.cjs
+          node qa/render-check.cjs
       - name: Prepare site
         run: |
           mkdir _site

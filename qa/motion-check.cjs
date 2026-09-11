@@ -20,8 +20,13 @@ const ui = {
   levelName: {}, signalCount: {}, trustScore: {}, lifeCount: {},
   showStory(story) { shownStory = story; },
 };
+// A canvas already sized to the default camera, so resizeCanvas has nothing to
+// do. These tests are about movement, not framing.
 const newGame = () => {
-  const game = new scope.window.CloudQuestGame({ width: 960, getContext: () => ({}) }, ui);
+  const game = new scope.window.CloudQuestGame(
+    { width: 960, height: 540, getContext: () => ({ setTransform() {} }) },
+    ui,
+  );
   game.render = () => {};
   return game;
 };

@@ -4,6 +4,17 @@ const HAZARD_HIT = {
   spike: "Policy breach. That change went through unreviewed.",
 };
 
+// A phone held sideways is far wider than the 16/9 shape the world was drawn
+// for. Fitting all 540px of world height onto one spends more than half the
+// screen on empty sky and leaves Eva 86px tall, so past this aspect the camera
+// shows less height and rides with her instead.
+const WIDE_ASPECT = 1.9;
+// How much world a very wide screen should try to show across.
+const WIDEST_VIEW_W = 820;
+// Never show less than this: it holds Eva, a full jump from the ground, and the
+// platform she is aiming at, so a routine jump never moves the camera at all.
+const MIN_VIEW_H = 340;
+
 class CloudQuestGame {
   constructor(canvas, ui) {
     this.canvas = canvas;
@@ -11,6 +22,10 @@ class CloudQuestGame {
     this.ui = ui;
     this.width = 960;
     this.height = 540;
+    // How much of that height is on camera. Equal to height on 16/9 and
+    // anything taller, which is every case except a phone in landscape.
+    this.viewH = 540;
+    this.cameraY = 0;
     this.dpr = 1;
     this.petSprites = {};
     this.heroSprites = {};
@@ -42,16 +57,26 @@ class CloudQuestGame {
   }
 
   resizeCanvas() {
-    // Preserve world height/physics and expand the camera to the actual screen.
+    // World height and physics never change. Only how much of the world is on
+    // camera does, and that follows the shape of the screen.
     const bounds = this.canvas.getBoundingClientRect?.();
     if (bounds?.width > 0 && bounds?.height > 0) {
-      this.width = Math.max(240, Math.round(this.height * bounds.width / bounds.height));
+      const aspect = bounds.width / bounds.height;
+      this.viewH = aspect > WIDE_ASPECT
+        ? Math.max(MIN_VIEW_H, Math.round(WIDEST_VIEW_W / aspect))
+        : this.height;
+      this.width = Math.max(240, Math.round(this.viewH * aspect));
+      this.snapCameraY();
     }
     const nextDpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
-    if (this.dpr === nextDpr && this.canvas.width === this.width * nextDpr) return;
+    if (
+      this.dpr === nextDpr
+      && this.canvas.width === Math.round(this.width * nextDpr)
+      && this.canvas.height === Math.round(this.viewH * nextDpr)
+    ) return;
     this.dpr = nextDpr;
     this.canvas.width = Math.round(this.width * this.dpr);
-    this.canvas.height = Math.round(this.height * this.dpr);
+    this.canvas.height = Math.round(this.viewH * this.dpr);
 
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.ctx.imageSmoothingEnabled = true;
@@ -110,6 +135,7 @@ class CloudQuestGame {
       victory: false,
     };
     this.pet = { x: this.player.x - 42, y: this.player.y - 24, bob: 0 };
+    this.snapCameraY();
     this.message = "";
     this.messageTimer = 0;
 
@@ -308,6 +334,7 @@ class CloudQuestGame {
 
     // No upper clamp: the world is endless, so the camera only trails the run.
     this.cameraX = Math.max(0, this.player.x - Math.min(280, this.width * 0.32));
+    this.followCameraY(dt);
     this.ensureWorld();
 
     if (this.messageTimer > 0) {
@@ -587,16 +614,50 @@ class CloudQuestGame {
     return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   }
 
+  // Vertical camera. On 16/9 and anything taller the whole world height is on
+  // camera, maxY is 0, and this never moves a pixel. On a phone in landscape
+  // the view is shorter than the world, so it rides with Eva -- but only when
+  // she is about to leave the frame. A jump from the ground stays inside the
+  // dead zone, so the scene does not pump up and down as she runs.
+  followCameraY(dt) {
+    const maxY = this.height - this.viewH;
+    if (maxY <= 0) {
+      this.cameraY = 0;
+      return;
+    }
+
+    const MARGIN = 24;
+    // The sprite is drawn taller than the collision box and overhangs its top.
+    const spriteTop = this.player.y - 53;
+
+    // One rest position: the ground sitting on the bottom edge, which is the
+    // frame for almost the whole run. The camera only leaves it to keep Eva's
+    // head in shot once she is up on the platforms, and MIN_VIEW_H guarantees a
+    // jump from the ground still fits, so ordinary running never moves it.
+    let target = maxY;
+    if (spriteTop - MARGIN < target) target = Math.max(0, spriteTop - MARGIN);
+
+    // Damped, so landing does not snap the whole scene.
+    this.cameraY += (target - this.cameraY) * Math.min(1, dt * 8);
+  }
+
+  // Frames the camera for where the player is right now, with no easing, so the
+  // first paint of a run -- and the first after a rotation -- is already right.
+  snapCameraY() {
+    this.cameraY = Math.max(0, this.height - this.viewH);
+    if (this.player) this.followCameraY(1);
+  }
+
   // ------------------------------------------------------------------ drawing
 
   render() {
     const ctx = this.ctx;
     const t = this.zone.theme;
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    ctx.clearRect(0, 0, this.width, this.height);
+    ctx.clearRect(0, 0, this.width, this.viewH);
     this.drawBackground(ctx, t);
     ctx.save();
-    ctx.translate(-Math.round(this.cameraX), 0);
+    ctx.translate(-Math.round(this.cameraX), -Math.round(this.cameraY));
     this.drawPlatforms(ctx, t);
     this.drawCollectibles(ctx, t);
     this.drawHazards(ctx, t);
@@ -609,13 +670,13 @@ class CloudQuestGame {
 
   drawBackground(ctx, t) {
     ctx.fillStyle = t.sky;
-    ctx.fillRect(0, 0, this.width, this.height);
-    const skyGradient = ctx.createLinearGradient(0, 0, 0, this.height);
+    ctx.fillRect(0, 0, this.width, this.viewH);
+    const skyGradient = ctx.createLinearGradient(0, 0, 0, this.viewH);
     skyGradient.addColorStop(0, "rgba(255,255,255,0.32)");
     skyGradient.addColorStop(0.5, "rgba(255,255,255,0.04)");
     skyGradient.addColorStop(1, "rgba(0,0,0,0.14)");
     ctx.fillStyle = skyGradient;
-    ctx.fillRect(0, 0, this.width, this.height);
+    ctx.fillRect(0, 0, this.width, this.viewH);
     // Parallax cloud bank. These were previously two offset rectangles, which
     // read as hard T shapes rather than scenery.
     ctx.fillStyle = t.far;
@@ -625,10 +686,10 @@ class CloudQuestGame {
     }
     ctx.fillStyle = "rgba(255,255,255,0.12)";
     for (let x = -80; x < this.width + 120; x += 96) {
-      this.rect(ctx, x - (this.cameraX * 0.12) % 96, 0, 2, this.height);
+      this.rect(ctx, x - (this.cameraX * 0.12) % 96, 0, 2, this.viewH);
     }
     ctx.fillStyle = "rgba(8,16,32,0.09)";
-    for (let y = 18; y < this.height; y += 42) {
+    for (let y = 18; y < this.viewH; y += 42) {
       this.rect(ctx, 0, y, this.width, 1);
     }
   }
@@ -837,37 +898,75 @@ class CloudQuestGame {
     ctx.restore();
   }
 
+  // The dialogue box is sized to its text rather than the other way round. The
+  // camera is as wide as the screen's aspect ratio makes it, so a portrait
+  // phone leaves barely 300 world px: an advisor line that takes two lines in
+  // landscape wraps to six there, and a fixed 72px box left the rest of the
+  // words sitting out on the sky.
   drawMessage(ctx) {
     if (this.messageTimer <= 0 || !this.message) return;
+
+    const MARGIN = 24;
+    const PAD = 16;
+    // A short view has no room to float the box down the screen, so there it
+    // sits near the top edge instead.
+    const TOP = this.viewH >= 480 ? 96 : 16;
+    // Eva's name tag floats above her sprite, and the box stops short of it so
+    // a long line never hides the player. Both are screen positions, so this
+    // tracks the vertical camera.
+    const MAX_BOTTOM = Math.min(this.viewH - 8, this.player.y - 87 - this.cameraY);
+
+    const boxW = this.width - MARGIN * 2;
+    const textW = boxW - PAD * 2;
+    const height = (count, size) => PAD * 2 + count * Math.round(size * 1.22) - 4;
+
+    // Full size in every normal case. The smaller steps only come into play on
+    // a camera too narrow to fit the longest advisor line above Eva's head.
+    let size = 18;
+    let lines = [];
+    for (const candidate of [18, 16, 14]) {
+      size = candidate;
+      ctx.font = `700 ${size}px Arial, sans-serif`;
+      lines = this.wrapLines(ctx, this.message, textW);
+      if (TOP + height(lines.length, size) <= MAX_BOTTOM) break;
+    }
+
+    const lineHeight = Math.round(size * 1.22);
+    const boxH = height(lines.length, size);
+
     ctx.fillStyle = "rgba(8,16,32,0.88)";
-    this.rect(ctx, 24, 110, this.width - 48, 72);
+    this.rect(ctx, MARGIN, TOP, boxW, boxH);
     ctx.strokeStyle = "#ffd84d";
     ctx.lineWidth = 4;
-    ctx.strokeRect(24, 110, this.width - 48, 72);
+    ctx.strokeRect(MARGIN, TOP, boxW, boxH);
+
     ctx.fillStyle = "#fff7de";
-    ctx.font = "700 18px Arial, sans-serif";
     ctx.textBaseline = "alphabetic";
-    this.wrapText(ctx, this.message, 44, 140, this.width - 92, 22);
+    lines.forEach((line, i) => {
+      ctx.fillText(line, MARGIN + PAD, TOP + PAD + size - 4 + i * lineHeight);
+    });
   }
 
   rect(ctx, x, y, w, h) {
     ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
   }
 
-  wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-    const words = text.split(" ");
+  // Lays the text out without drawing any of it. Separating the two is what
+  // lets drawMessage know how tall the box has to be before it paints one.
+  wrapLines(ctx, text, maxWidth) {
+    const lines = [];
     let line = "";
-    for (const word of words) {
-      const test = line + word + " ";
-      if (ctx.measureText(test).width > maxWidth && line) {
-        ctx.fillText(line, x, y);
-        line = word + " ";
-        y += lineHeight;
+    for (const word of text.split(" ")) {
+      const test = line ? `${line} ${word}` : word;
+      if (line && ctx.measureText(test).width > maxWidth) {
+        lines.push(line);
+        line = word;
       } else {
         line = test;
       }
     }
-    ctx.fillText(line, x, y);
+    if (line) lines.push(line);
+    return lines;
   }
 }
 

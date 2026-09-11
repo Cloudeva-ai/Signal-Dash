@@ -491,19 +491,18 @@ p {
 
 @media (orientation: landscape) and (max-height: 540px) {
   :root {
-    --control-h: 112px;
-    --stick: 92px;
-    --jump: 78px;
+    --control-h: 88px;
+    --stick: 76px;
+    --jump: 68px;
   }
 
-  /* A short screen cannot spare a strip, so the controls float over the
-     playfield instead of sitting below it. */
-  .canvas-frame {
-    inset: 0;
-  }
-
+  /* The controls used to float over the playfield here. They landed straight
+     on the ground band -- which in landscape is the bottom sliver of the
+     screen, where all the running happens -- so a thumb covered the obstacle
+     it was there to jump. They get their own strip, and the camera crops the
+     dead sky to pay for it. */
   .controls {
-    background: none;
+    padding-top: 5px;
   }
 
   .hud div:first-child {

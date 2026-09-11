@@ -106,7 +106,8 @@ each kind over 20 simulated seconds to confirm its box never leaves that x.
 node qa/world-check.cjs    # generator geometry and fairness invariants
 node qa/motion-check.cjs   # movement, endless generation, scoring, lives
 node qa/touch-check.cjs    # simultaneous touch controls and cleanup
-node qa/viewport-check.cjs # camera proportions and world coverage on resize
+node qa/viewport-check.cjs # camera framing and world coverage on every screen shape
+node qa/render-check.cjs   # dialogue box fits its text at every camera width
 ```
 
 ## Folder Structure
@@ -129,6 +130,7 @@ node qa/viewport-check.cjs # camera proportions and world coverage on resize
     motion-check.cjs
     touch-check.cjs
     viewport-check.cjs
+    render-check.cjs
   assets/           coin and power sprites (tools/make_assets.py)
   mascot/           Eva sprite poses
   docs/             sprite generation notes
@@ -180,10 +182,35 @@ the screen and the controls float over it. The control deck itself ignores
 touches -- only the stick and buttons take them -- so a resting thumb never
 swallows a tap.
 
-The camera width follows the playfield aspect ratio, preserving sprite
-proportions and physics. Use Fullscreen (where supported) to hide browser bars.
-Resizing or rotating keeps the same run and releases held controls. Coin
+The camera always matches the playfield's proportions, so sprites never
+stretch. How much world it shows depends on the shape of the screen. At 16/9 or
+anything taller -- portrait, tablets, desktop -- it shows the full 540px of
+world height, exactly as it always has. A phone held sideways is much wider
+than that, and fitting all 540px onto one spent over half the screen on empty
+sky and left Eva 86px tall, so past a 1.9 aspect the camera shows a shorter
+slice (never less than `MIN_VIEW_H`, which is enough to frame a jump from the
+ground) and follows her vertically instead.
+
+That vertical camera has a single rest position, with the ground on the bottom
+edge, and it holds there for almost the whole run: `MIN_VIEW_H` guarantees a
+jump from the ground fits, so ordinary running never moves it. It only pans up
+when Eva is on the raised platforms, and eases back down when she lands.
+`qa/viewport-check.cjs` checks both ends across six screen shapes -- her head
+stays in frame at the top of a jump from the high road, and the ground line
+stays in frame when she is standing on it.
+
+Landscape used to float the thumb controls over the playfield. In that
+orientation the ground is the bottom sliver of the screen, so a thumb covered
+the obstacle it was there to jump; the controls now get their own strip, and
+the cropped sky pays for it. Use Fullscreen (where supported) to hide browser
+bars. Resizing or rotating keeps the same run and releases held controls. Coin
 pickups update the score without covering the playfield with a message.
+
+The advisor dialogue box is sized to its wrapped text rather than a fixed
+height. The same line takes two lines in landscape and six on a portrait phone,
+where the camera is only ~300 world px wide, and a fixed box left the rest of
+the words out on the sky. `qa/render-check.cjs` holds every string the game can
+show inside its box at four camera widths.
 
 The joystick direction arrows and the Jump chevron are drawn with CSS
 `clip-path`, not text, so they render identically regardless of which glyphs
