@@ -15,6 +15,15 @@ const WIDEST_VIEW_W = 820;
 // platform she is aiming at, so a routine jump never moves the camera at all.
 const MIN_VIEW_H = 340;
 
+// A coin is 38px across. At the height the label sits, the face is about 36px
+// wide, so 34 keeps the word clear of the rim.
+const COIN_LABEL_W = 34;
+const COIN_LABEL_MAX = 9;
+// Smaller than this stops being readable on a phone, where the coin is drawn
+// at roughly life size. Coin labels in levels.js are kept to six characters so
+// that nothing has to go below it -- qa/render-check.cjs holds them to that.
+const COIN_LABEL_MIN = 7;
+
 class CloudQuestGame {
   constructor(canvas, ui) {
     this.canvas = canvas;
@@ -27,7 +36,6 @@ class CloudQuestGame {
     this.viewH = 540;
     this.cameraY = 0;
     this.dpr = 1;
-    this.petSprites = {};
     this.heroSprites = {};
     this.itemSprites = {};
     this.moveAxis = 0;
@@ -43,7 +51,6 @@ class CloudQuestGame {
     this.trust = 0;
     this.coins = 0;
     this.zoneIndex = 0;
-    this.petUnlocked = true;
     this.message = "";
     this.messageTimer = 0;
     this.finished = false;
@@ -81,11 +88,6 @@ class CloudQuestGame {
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.ctx.imageSmoothingEnabled = true;
     this.ctx.textRendering = "geometricPrecision";
-  }
-
-  setPetSprites(sprites) {
-    this.petSprites = sprites || {};
-    this.render();
   }
 
   setHeroSprites(sprites) {
@@ -282,7 +284,6 @@ class CloudQuestGame {
 
   restart() {
     this.lives = CloudQuestGame.MAX_LIVES;
-    this.petUnlocked = true;
     this.startRun();
     this.paused = true;
     this.storyOpen = true;
@@ -758,12 +759,18 @@ class CloudQuestGame {
       }
 
       // Centred rather than left-aligned, so the label sits on the round coin
-      // face instead of running over its edge.
-      // 9px keeps five wide characters ("OWNER") inside the coin face; 10px
-      // spilled over the rim.
-      const label = item.label.slice(0, 5);
+      // face instead of running over its edge, and fitted to that face rather
+      // than cut to length. This used to chop every label to five characters,
+      // which left SIGNAL reading as "SIGNA" and RECORD as "RECOR". A whole
+      // word half a point smaller reads better than a truncated one.
+      const label = item.label;
+      let size = COIN_LABEL_MAX;
+      ctx.font = `800 ${size}px Arial, sans-serif`;
+      while (size > COIN_LABEL_MIN && ctx.measureText(label).width > COIN_LABEL_W) {
+        size -= 0.5;
+        ctx.font = `800 ${size}px Arial, sans-serif`;
+      }
       ctx.fillStyle = "#081020";
-      ctx.font = "800 9px Arial, sans-serif";
       ctx.fillText(label, item.x + 19 - ctx.measureText(label).width / 2, item.y + 23);
     }
   }

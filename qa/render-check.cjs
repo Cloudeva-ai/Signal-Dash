@@ -127,3 +127,30 @@ console.log(
   `PASS: ${MESSAGES.length} dialogue strings stay inside the box at 4 camera widths ` +
     `(tallest box ${Math.round(widest)}px, clear of the player)`,
 );
+
+// --- coin labels ----------------------------------------------------------
+// A coin label is fitted to the 38px coin face by shrinking the type, down to
+// COIN_LABEL_MIN. Six characters is the longest that still fits at that floor,
+// so the vocabulary is held to it: a longer word would either be drawn too
+// small to read or pushed over the rim. This replaced chopping every label to
+// five characters, which rendered SIGNAL as "SIGNA".
+const MIN_SIZE = Number(source.match(/const COIN_LABEL_MIN = ([\d.]+)/)[1]);
+const MAX_CHARS = 6;
+for (const zone of zones) {
+  for (const label of zone.coinLabels) {
+    assert.ok(
+      label.length <= MAX_CHARS,
+      `coin label "${label}" is ${label.length} characters; more than ${MAX_CHARS} cannot fit ` +
+        `the coin face at ${MIN_SIZE}px, so it would be drawn too small to read`,
+    );
+  }
+}
+// The engine must fit the label rather than cut it.
+assert.ok(
+  !/item\.label\.slice/.test(source),
+  'coin labels must be fitted to the coin face, not truncated',
+);
+const coinLabels = zones.flatMap((z) => z.coinLabels);
+console.log(
+  `PASS: ${coinLabels.length} coin labels are short enough to render whole at ${MIN_SIZE}px`,
+);

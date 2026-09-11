@@ -66,7 +66,7 @@ window.RCQ_ZONES = [
     },
     hazardType: "waste",
     hazardLabels: ["OVER", "IDLE", "LATE", "SPIKE"],
-    coinLabels: ["COST", "SPIKE", "BUDGET", "UNIT", "WASTE", "OUTCOME"],
+    coinLabels: ["COST", "SPIKE", "BUDGET", "UNIT", "WASTE", "VALUE"],
     npcs: [
       {
         label: "FinOps",
@@ -95,7 +95,7 @@ window.RCQ_ZONES = [
     },
     hazardType: "risk",
     hazardLabels: ["OPEN", "FAIL", "AUTO", "STALE"],
-    coinLabels: ["RISK", "VERIFY", "CISO", "COMPLY", "EVID", "APPROVE"],
+    coinLabels: ["RISK", "VERIFY", "CISO", "COMPLY", "EVID", "GRANT"],
     npcs: [
       {
         label: "CISO",

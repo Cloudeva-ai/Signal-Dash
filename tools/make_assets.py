@@ -69,37 +69,6 @@ def coin():
     save(img, "coin.png")
 
 
-def power():
-    """An optional boost pickup: a cyan capsule with a chevron, unused by
-    default but kept so a power-up can be dropped in without new art."""
-    img = canvas()
-    d = ImageDraw.Draw(img)
-    s = SIZE * SS
-    pad = 6 * SS
-
-    ring(d, (pad, pad, s - pad, s - pad), INK)
-    ring(d, (pad + 4 * SS, pad + 4 * SS, s - pad - 4 * SS, s - pad - 4 * SS), CYAN_DEEP)
-    ring(d, (pad + 7 * SS, pad + 7 * SS, s - pad - 7 * SS, s - pad - 7 * SS), CYAN)
-
-    # Upward chevron, drawn as two thick strokes.
-    mid = s // 2
-    d.line(
-        [(mid - 22 * SS, mid + 10 * SS), (mid, mid - 14 * SS), (mid + 22 * SS, mid + 10 * SS)],
-        fill=INK,
-        width=7 * SS,
-        joint="curve",
-    )
-    d.arc(
-        (pad + 12 * SS, pad + 12 * SS, s - pad - 12 * SS, s - pad - 12 * SS),
-        start=185,
-        end=265,
-        fill=(255, 255, 255, 190),
-        width=4 * SS,
-    )
-    save(img, "power.png")
-
-
 if __name__ == "__main__":
     print("writing sprites:")
     coin()
-    power()

@@ -131,7 +131,7 @@ node qa/render-check.cjs   # dialogue box fits its text at every camera width
     touch-check.cjs
     viewport-check.cjs
     render-check.cjs
-  assets/           coin and power sprites (tools/make_assets.py)
+  assets/           coin sprite (tools/make_assets.py)
   mascot/           Eva sprite poses
   docs/             sprite generation notes
   tools/
