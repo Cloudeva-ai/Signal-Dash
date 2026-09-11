@@ -147,6 +147,26 @@ for (const chunk of chunks) {
     }
   }
 
+  // Pits must also stay clear of obstacles on the far side. Clearing a pit is
+  // committed the moment the player leaves the ledge: they cannot stop, turn,
+  // or jump again, so where they touch down is fixed by when they took off.
+  // An obstacle anywhere in that touchdown range is an unavoidable hit. The
+  // range runs from the landing ledge to the furthest a jump taken at the very
+  // edge of the pit can carry, which is a full airtime at running speed.
+  for (const pit of pits) {
+    const landFrom = pit.to;
+    const landTo = Math.round(pit.from + REACH_ACROSS);
+    for (const hazard of chunk.hazards || []) {
+      if (hazard.x < landTo && hazard.x + hazard.w > landFrom - PLAYER_W) {
+        flag(
+          chunk.id,
+          `hazard at ${hazard.x} sits in the landing range ${landFrom}..${landTo} of the pit at ` +
+            `${pit.from}..${pit.to}, so clearing that pit drops the player onto it`,
+        );
+      }
+    }
+  }
+
   for (const coin of chunk.coins || []) {
     const rest = surfaces.find(
       (s) => coin.x + COIN > s.x && coin.x < s.x + s.w && Math.abs(s.y - (coin.y + COIN_LIFT)) < 6,

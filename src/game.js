@@ -187,7 +187,14 @@ class CloudQuestGame {
         taken: false,
       });
     });
-    (template.hazards || []).forEach((hazard, i) => {
+    // The opening chunk spawns no obstacles, whichever template it draws. A run
+    // starts with the player standing at x=64 with no run-up, often before they
+    // have touched the controls at all, so the first thing on screen should be
+    // ground to move on rather than a hit waiting 136px away. Every later chunk
+    // carries its template's obstacles as written, including this same template
+    // when it comes round again mid-run.
+    const hazards = index === 0 ? [] : template.hazards || [];
+    hazards.forEach((hazard, i) => {
       chunk.hazards.push({
         x: offset + hazard.x,
         y: hazard.y,

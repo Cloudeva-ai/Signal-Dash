@@ -212,10 +212,10 @@ window.RCQ_CHUNKS = [
       { x: 470, y: 400 },
       { x: 880, y: 400 },
     ],
-    hazards: [
-      { x: 100, y: 416, w: 44, h: 28 },
-      { x: 700, y: 416, w: 44, h: 28 },
-    ],
+    // Only the approach island carries an obstacle. The landing islands stay
+    // bare: a pit jump is committed in mid-air, so anything waiting where the
+    // player touches down is a hit they had no way to avoid.
+    hazards: [{ x: 100, y: 416, w: 44, h: 28 }],
   },
   {
     id: "double-pit",
@@ -227,12 +227,10 @@ window.RCQ_CHUNKS = [
       { x: 560, y: 400 },
       { x: 830, y: 400 },
     ],
-    hazards: [
-      { x: 80, y: 416, w: 44, h: 28 },
-      // Sits at the left end of the middle island, leaving the rest of its
-      // 220px for the landing and the coin.
-      { x: 420, y: 416, w: 44, h: 28 },
-    ],
+    // The two pits are the whole challenge. The middle island is a landing
+    // strip, so it stays bare -- an obstacle at its left end sat exactly where
+    // the first jump puts you down.
+    hazards: [{ x: 80, y: 416, w: 44, h: 28 }],
   },
   {
     id: "high-road",

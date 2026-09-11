@@ -77,10 +77,20 @@ of them against those constants rather than hardcoded numbers:
    are bare gaps under 150px, and blocks keep 200px away. Wide crossings use
    ground-level islands, which have no underside to bonk.
 
-The same file also enforces two fairness rules for hazards: a hazard may not sit
-in the landing band of a platform's right edge (running off is a committed fall,
-so that hit is unavoidable), and the takeoff window for clearing a hazard may
-not fall under a platform (the jump would bonk the ceiling).
+The same file also enforces three fairness rules for hazards, all of them about
+hits the player has no way to avoid. A hazard may not sit in the landing band of
+a platform's right edge (running off is a committed fall). A hazard may not sit
+in the landing range on the far side of a pit, which runs from the landing ledge
+to the furthest a jump taken at the pit's edge can carry: clearing a pit is
+committed the moment the player leaves the ledge, so where they touch down is
+already fixed. And the takeoff window for clearing a hazard may not fall under a
+platform (the jump would bonk the ceiling).
+
+The opening chunk of a run spawns no obstacles at all, whichever template it
+draws. A run starts with the player standing still at x=64 with no run-up, often
+before they have touched the controls, so the first screen is ground to move on.
+The same template carries its obstacles as written when it comes round again
+later in the run.
 
 Obstacles come in two kinds, both worth exactly one life: a bobbing signal
 blocker and a narrower spike strip. Neither travels horizontally. Every rule
