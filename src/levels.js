@@ -54,7 +54,7 @@ window.RCQ_ZONES = [
   {
     id: "cost",
     name: "Cost Control Run",
-    from: 340,
+    from: 330,
     theme: {
       sky: "#2f2447",
       far: "#5e4765",
@@ -83,7 +83,7 @@ window.RCQ_ZONES = [
   {
     id: "risk",
     name: "Risk Signal Run",
-    from: 670,
+    from: 660,
     theme: {
       sky: "#371f2d",
       far: "#704459",

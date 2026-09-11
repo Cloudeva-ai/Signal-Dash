@@ -180,27 +180,85 @@ window.addEventListener("keyup", (event) => {
   game.setKey(key, false);
 });
 
+const joystick = document.querySelector("#joystick");
+const joystickThumb = document.querySelector("#joystickThumb");
+let stickPointer = null;
+const buttonPointers = new Map();
+
+function resetJoystick() {
+  stickPointer = null;
+  game.moveAxis = 0;
+  joystickThumb.style.transform = "translate(0px, 0px)";
+  joystick.classList.remove("is-active");
+}
+
+function moveJoystick(event) {
+  if (event.pointerId !== stickPointer) return;
+  event.preventDefault();
+  const rect = joystick.getBoundingClientRect();
+  const radius = rect.width * 0.3;
+  let x = event.clientX - rect.left - rect.width / 2;
+  let y = event.clientY - rect.top - rect.height / 2;
+  const distance = Math.hypot(x, y);
+  if (distance > radius) { x *= radius / distance; y *= radius / distance; }
+  joystickThumb.style.transform = `translate(${x}px, ${y}px)`;
+  const axis = x / radius;
+  const deadZone = 0.15;
+  game.moveAxis = Math.abs(axis) <= deadZone ? 0
+    : Math.sign(axis) * (Math.abs(axis) - deadZone) / (1 - deadZone);
+}
+
+joystick.addEventListener("pointerdown", (event) => {
+  if (stickPointer !== null || (event.button !== undefined && event.button !== 0)) return;
+  stickPointer = event.pointerId;
+  joystick.setPointerCapture(event.pointerId);
+  joystick.classList.add("is-active");
+  moveJoystick(event);
+});
+joystick.addEventListener("pointermove", moveJoystick);
+for (const name of ["pointerup", "pointercancel", "lostpointercapture"]) {
+  joystick.addEventListener(name, (event) => {
+    if (event.pointerId === stickPointer) resetJoystick();
+  });
+}
+
 document.querySelectorAll("[data-control]").forEach((button) => {
   const control = button.dataset.control;
-  const start = (event) => {
+  const pointers = new Set();
+  buttonPointers.set(button, pointers);
+  button.addEventListener("pointerdown", (event) => {
+    if (event.button !== undefined && event.button !== 0) return;
     event.preventDefault();
+    pointers.add(event.pointerId);
     button.setPointerCapture(event.pointerId);
+    button.classList.add("is-held");
     game.setKey(control, true);
-  };
+  });
   const end = (event) => {
-    event.preventDefault();
-    game.setKey(control, false);
+    pointers.delete(event.pointerId);
+    if (!pointers.size) {
+      button.classList.remove("is-held");
+      game.setKey(control, false);
+    }
   };
-  button.addEventListener("pointerdown", start);
-  button.addEventListener("pointerup", end);
-  button.addEventListener("pointercancel", end);
-  button.addEventListener("lostpointercapture", end);
+  for (const name of ["pointerup", "pointercancel", "lostpointercapture"]) {
+    button.addEventListener(name, end);
+  }
 });
 
 function releaseControls() {
   Object.keys(keyMap).forEach((code) => game.setKey(keyMap[code], false));
+  resetJoystick();
+  buttonPointers.forEach((pointers, button) => {
+    pointers.clear();
+    button.classList.remove("is-held");
+  });
 }
 
+window.addEventListener("resize", releaseControls);
+pauseButton.addEventListener("click", releaseControls);
+restartButton.addEventListener("click", releaseControls);
+storyAction.addEventListener("click", releaseControls);
 window.addEventListener("blur", releaseControls);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
@@ -209,3 +267,29 @@ document.addEventListener("visibilitychange", () => {
     pauseButton.textContent = "Resume";
   }
 });
+
+// Browser bars can resize the playfield without changing device orientation.
+if (window.ResizeObserver) {
+  new window.ResizeObserver(() => {
+    game.resizeCanvas();
+    if (game.chunks) game.ensureWorld();
+    game.render();
+  }).observe(canvas);
+}
+const fullscreenButton = document.querySelector("#fullscreenButton");
+if (document.documentElement?.requestFullscreen) {
+  fullscreenButton.hidden = false;
+  fullscreenButton.addEventListener("click", async () => {
+    releaseControls();
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+    } catch {
+      game.flash("Fullscreen unavailable. You can keep playing here.", 3);
+    }
+  });
+  document.addEventListener("fullscreenchange", () => {
+    fullscreenButton.textContent = document.fullscreenElement ? "Exit full" : "Fullscreen";
+    releaseControls();
+  });
+}

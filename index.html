@@ -17,7 +17,7 @@
     <link rel="preload" as="image" href="./mascot/Eva_Idle.png">
     <link rel="preload" as="image" href="./assets/coin.png">
     <link rel="preload" as="image" href="./mascot/Mascot_Front_Look.png">
-    <link rel="stylesheet" href="./src/styles.css?v=20260910-obstacles-v3">
+    <link rel="stylesheet" href="./src/styles.css?v=20260911-immersive-v2">
   </head>
   <body>
     <main class="shell">
@@ -30,6 +30,7 @@
           </span>
         </a>
         <div class="top-actions">
+          <button id="fullscreenButton" type="button" hidden>Fullscreen</button>
           <button id="pauseButton" type="button">Pause</button>
           <button id="restartButton" type="button">Restart</button>
         </div>
@@ -89,11 +90,18 @@
           </div>
         </div>
 
-        <div class="controls">
-          <button type="button" data-control="left" aria-label="Move left">Left</button>
-          <button type="button" data-control="right" aria-label="Move right">Right</button>
-          <button type="button" data-control="jump" aria-label="Jump">Jump</button>
-          <button type="button" data-control="interact" aria-label="Interact">Talk</button>
+        <div class="controls" aria-label="Game controls">
+          <div class="joystick-group">
+            <div id="joystick" class="joystick" role="group" aria-label="Movement joystick. Drag left or right to move.">
+              <span class="joystick-arrows" aria-hidden="true">? &nbsp; ?</span>
+              <span id="joystickThumb" class="joystick-thumb" aria-hidden="true"></span>
+            </div>
+            <span class="control-hint">DRAG TO MOVE</span>
+          </div>
+          <div class="action-controls">
+            <button class="talk-button" type="button" data-control="interact" aria-label="Talk to an advisor">Talk</button>
+            <button class="jump-button" type="button" data-control="jump" aria-label="Jump"><span aria-hidden="true">?</span>Jump</button>
+          </div>
         </div>
       </section>
 
@@ -103,9 +111,9 @@
       </footer>
     </main>
 
-    <script src="./src/story.js?v=20260910-obstacles-v3"></script>
-    <script src="./src/levels.js?v=20260910-obstacles-v3"></script>
-    <script src="./src/game.js?v=20260910-obstacles-v3"></script>
-    <script src="./src/main.js?v=20260910-obstacles-v3"></script>
+    <script src="./src/story.js?v=20260911-immersive-v2"></script>
+    <script src="./src/levels.js?v=20260911-immersive-v2"></script>
+    <script src="./src/game.js?v=20260911-immersive-v2"></script>
+    <script src="./src/main.js?v=20260911-immersive-v2"></script>
   </body>
 </html>

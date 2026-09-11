@@ -5,7 +5,7 @@ window.RCQ_STORY = {
     kicker: "Cloud Decision Run",
     title: "Signal Dash",
     body:
-      "Eva enters an endless cloud estate streaming signals from AWS, Azure, and GCP. Run right, collect 100 decision signals, and reach 1000 points. The estate shifts from governance to cost to risk as your score climbs, and Eva has three lives to get there.",
+      "Drag the left stick to run. Tap Jump on the right to clear gaps and obstacles. Collect 100 signals to win. You have 3 lives, restored at 330 and 660 points. Turn your phone sideways for the widest view.",
     action: "Start the run",
     showMascot: true,
   },

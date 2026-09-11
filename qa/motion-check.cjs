@@ -190,7 +190,6 @@ const collect = (n) => {
     game.coins += 1;
     game.trust += world.coinValue;
     game.checkZone();
-    game.checkExtraLife();
     game.checkFinish();
     if (game.finished) return;
   }
@@ -200,14 +199,20 @@ collect(1);
 assert.equal(game.trust, 10, 'one coin must be worth exactly the coin value');
 assert.equal(game.lives, 3, 'no bonus life before the first threshold');
 
-// A 1-up every 200 points, capped, is what makes a multi-minute run finishable.
-const BONUS = scope.window.CloudQuestGame.LIFE_BONUS_EVERY;
+// Lives refresh only on entering a new zone, at 330 and 660 points.
 const CAP = scope.window.CloudQuestGame.MAX_LIVES;
-collect(BONUS / world.coinValue - 1);
-assert.equal(game.trust, BONUS);
-assert.equal(game.lives, 4, `crossing ${BONUS} points must award a life`);
+assert.equal(CAP, 3);
+assert.equal(zones[1].from, 330);
+assert.equal(zones[2].from, 660);
+game.lives = 1;
+collect((zones[1].from - world.coinValue - game.trust) / world.coinValue);
+assert.equal(game.lives, 1, 'no life bonus before 330 points');
+collect(1);
+assert.equal(game.lives, 3, '330 points must restore all three lives');
+game.lives = 2;
+game.checkZone();
+assert.equal(game.lives, 2, 'the same zone must not refill lives twice');
 
-collect((zones[1].from - BONUS) / world.coinValue);
 assert.equal(game.trust, zones[1].from);
 assert.equal(game.zoneIndex, 1, 'crossing the second threshold must switch zone');
 assert.equal(game.zone.id, 'cost');
@@ -225,7 +230,10 @@ assert.equal(strayLabels().length, 0, `live coins carry stale labels: ${strayLab
 const strayTypes = game.hazards.filter(h => h.type !== game.zone.hazardType).map(h => h.type);
 assert.equal(strayTypes.length, 0, `live hazards carry stale types: ${strayTypes.join(', ')}`);
 
-collect((zones[2].from - zones[1].from) / world.coinValue);
+collect((zones[2].from - zones[1].from) / world.coinValue - 1);
+assert.equal(game.lives, 2, 'no life bonus before 660 points');
+collect(1);
+assert.equal(game.lives, 3, '660 points must restore all three lives');
 assert.equal(game.zoneIndex, 2, 'crossing the third threshold must switch zone');
 assert.equal(game.zone.id, 'risk');
 assert.equal(
@@ -237,7 +245,7 @@ collect((world.target - zones[2].from) / world.coinValue);
 assert.equal(game.trust, world.target, 'the run must land exactly on the target');
 assert.equal(game.finished, true, 'reaching the target must finish the run');
 assert.equal(game.coins, world.target / world.coinValue, 'the target must be exactly 100 coins');
-assert.equal(game.lives, CAP, `bonus lives must stop at the ${CAP}-life cap`);
+assert.equal(game.lives, CAP, `lives must stay at the ${CAP}-life cap`);
 assert.equal(shownStory.actionHref, 'https://cloudeva.ai/');
 assert.equal(shownStory.action, 'Explore CloudEVA');
 assert.ok(shownStory.body.includes('1000'), 'the ending must report the final score');
@@ -246,7 +254,7 @@ assert.equal(game.paused, true);
 assert.equal(game.storyOpen, true);
 assert.equal(game.player.victory, true);
 console.log(`PASS: coins-only scoring reaches ${world.target} in exactly ${game.coins} coins, rotating all 3 zones`);
-console.log(`PASS: a 1-up every ${BONUS} points, capped at ${CAP} lives`);
+console.log('PASS: lives capped at 3, refreshed only at 330 and 660 points');
 
 // Further overlap must not push the score past the target.
 game.checkCollectibles();

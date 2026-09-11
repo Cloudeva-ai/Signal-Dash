@@ -10,8 +10,8 @@ score climbs, so the CloudEVA story still lands by the end:
 | Zone | From | Theme |
 | --- | --- | --- |
 | Governance Run | 0 | Owners, policy, review, decision records |
-| Cost Control Run | 340 | Cost spikes tied to the change that caused them |
-| Risk Signal Run | 670 | Evidence and human approval before action |
+| Cost Control Run | 330 | Cost spikes tied to the change that caused them |
+| Risk Signal Run | 660 | Evidence and human approval before action |
 
 The content is based on Cloudeva.ai positioning around Explain, Verify, Advise,
 Decision Queue, Decision Records, human approval, and one governed view across
@@ -24,21 +24,23 @@ AWS, Azure, and GCP.
   which keeps the target on an exact coin boundary.
 - **Three lives, then game over.** A hazard or a fall costs a life and respawns
   Eva on solid ground just behind the hit. Losing all three ends the run.
-- **A 1-up every 200 points**, capped at 5 lives. Without this the run is
-  effectively unfinishable, since reaching 1000 takes a few minutes.
+- **Lives refresh to three at 330 and 660 points**, when entering a new zone.
+  There are no extra lives between zones, and lives never exceed three.
 - Reaching 1000 ends the run and shows the CloudEVA call to action.
 
 ## Controls
 
 | Action | Keyboard | Touch |
 | --- | --- | --- |
-| Move | Arrow Left / Right, or A / D | Left / Right buttons |
+| Move | Arrow Left / Right, or A / D | Left analog joystick |
 | Jump | Space, Arrow Up, or W | Jump button |
 | Talk to an advisor | E or Enter | Talk button |
 
-Touch uses pointer capture, so holding Right with one thumb while tapping Jump
-with the other works, and releasing, cancelling, or backgrounding the page
-clears the held keys rather than leaving Eva running.
+Drag the left joystick to move; drag farther for faster movement. Its center
+dead zone prevents accidental movement. Hold it with your left thumb and tap
+the large Jump button on the right. Talk remains beside Jump. Pointer capture
+keeps both touches independent, and releasing, cancelling, rotating, or
+backgrounding the page clears movement. Keyboard controls remain available.
 
 ## Run Locally
 
@@ -141,3 +143,12 @@ game fullscreen with no browser chrome.
 - No API keys are required.
 - All gameplay assets are local PNG, CSS, and JavaScript files.
 - Progress stays in the page session.
+
+## Mobile playfield
+
+Landscape fills the available viewport with a compact HUD and overlaid thumb
+controls. Portrait keeps controls in a dedicated bottom area. The camera width
+follows the playfield aspect ratio, preserving sprite proportions and physics.
+Use Fullscreen (where supported) to hide browser bars. Resizing or rotating
+keeps the same run and releases held controls. Coin pickups update the score
+without covering the playfield with a message.

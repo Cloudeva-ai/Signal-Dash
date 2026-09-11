@@ -16,6 +16,7 @@ class CloudQuestGame {
     this.petSprites = {};
     this.heroSprites = {};
     this.itemSprites = {};
+    this.moveAxis = 0;
     this.keys = { left: false, right: false, jump: false, interact: false };
     this.world = window.RCQ_WORLD;
     this.zones = window.RCQ_ZONES;
@@ -24,7 +25,7 @@ class CloudQuestGame {
     this.paused = true;
     this.storyOpen = true;
     this.lastTime = 0;
-    this.lives = 3;
+    this.lives = CloudQuestGame.MAX_LIVES;
     this.trust = 0;
     this.coins = 0;
     this.zoneIndex = 0;
@@ -42,12 +43,17 @@ class CloudQuestGame {
   }
 
   resizeCanvas() {
+    // Preserve world height/physics and expand the camera to the actual screen.
+    const bounds = this.canvas.getBoundingClientRect?.();
+    if (bounds?.width > 0 && bounds?.height > 0) {
+      this.width = Math.max(240, Math.round(this.height * bounds.width / bounds.height));
+    }
     const nextDpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
     if (this.dpr === nextDpr && this.canvas.width === this.width * nextDpr) return;
     this.dpr = nextDpr;
     this.canvas.width = Math.round(this.width * this.dpr);
     this.canvas.height = Math.round(this.height * this.dpr);
-    this.canvas.style.aspectRatio = `${this.width} / ${this.height}`;
+
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.ctx.imageSmoothingEnabled = true;
     this.ctx.textRendering = "geometricPrecision";
@@ -91,7 +97,6 @@ class CloudQuestGame {
     this.chunkSeed = 1;
     this.spawnedChunks = 0;
     this.lastTemplateId = "";
-    this.lifeBonusAt = CloudQuestGame.LIFE_BONUS_EVERY;
 
     this.player = {
       x: 64,
@@ -246,7 +251,7 @@ class CloudQuestGame {
   }
 
   restart() {
-    this.lives = 3;
+    this.lives = CloudQuestGame.MAX_LIVES;
     this.petUnlocked = true;
     this.startRun();
     this.paused = true;
@@ -275,7 +280,8 @@ class CloudQuestGame {
     const jump = 560;
     const gravity = 1480;
 
-    this.player.vx = 0;
+    this.player.vx = (this.moveAxis || 0) * speed;
+    if (this.moveAxis) this.player.facing = Math.sign(this.moveAxis);
     if (this.keys.left) {
       this.player.vx = -speed;
       this.player.facing = -1;
@@ -297,7 +303,7 @@ class CloudQuestGame {
     this.checkNpc();
 
     // No upper clamp: the world is endless, so the camera only trails the run.
-    this.cameraX = Math.max(0, this.player.x - 280);
+    this.cameraX = Math.max(0, this.player.x - Math.min(280, this.width * 0.32));
     this.ensureWorld();
 
     if (this.messageTimer > 0) {
@@ -363,9 +369,7 @@ class CloudQuestGame {
       item.taken = true;
       this.coins += 1;
       this.trust += this.world.coinValue;
-      this.flash(`${item.label} decision signal collected`);
       this.checkZone();
-      this.checkExtraLife();
       this.checkFinish();
       // Stop on the winning coin so overlapping pickups cannot push the score
       // past the target after the ending has already been shown.
@@ -382,9 +386,10 @@ class CloudQuestGame {
     }
     if (next === this.zoneIndex) return;
     this.zoneIndex = next;
+    this.lives = CloudQuestGame.MAX_LIVES;
     const zone = this.zone;
     this.applyZoneToWorld();
-    this.flash(`${zone.name} - ${window.RCQ_STORY.zones[this.zoneIndex].banner}`, 3);
+    this.flash(`${zone.name} - 3 lives restored!`, 3);
     this.ui.onZoneChange?.(zone.id, this.zoneIndex);
   }
 
@@ -413,20 +418,6 @@ class CloudQuestGame {
         npc.label = line.label;
         npc.text = line.text;
       }
-    }
-  }
-
-  // A 1-up every 100 points, capped so a careful player cannot bank an
-  // unlosable stack. The rate is tied to obstacle density: at roughly 1.8
-  // obstacles per chunk a run takes a hit every few seconds, so three lives
-  // run out long before 1000. Raising density means raising this too.
-  checkExtraLife() {
-    while (this.trust >= this.lifeBonusAt) {
-      if (this.lives < CloudQuestGame.MAX_LIVES) {
-        this.lives += 1;
-        this.flash(`Extra life earned at ${this.lifeBonusAt} points`, 2);
-      }
-      this.lifeBonusAt += CloudQuestGame.LIFE_BONUS_EVERY;
     }
   }
 
@@ -632,7 +623,7 @@ class CloudQuestGame {
     // Parallax cloud bank. These were previously two offset rectangles, which
     // read as hard T shapes rather than scenery.
     ctx.fillStyle = t.far;
-    for (let i = 0; i < 8; i += 1) {
+    for (let i = 0; i < Math.ceil(this.width / 210) + 2; i += 1) {
       const x = (i * 210 - (this.cameraX * 0.25) % 210) - 80;
       this.drawCloud(ctx, x, 78 + (i % 2) * 34, 96, 34);
     }
@@ -861,14 +852,14 @@ class CloudQuestGame {
   drawMessage(ctx) {
     if (this.messageTimer <= 0 || !this.message) return;
     ctx.fillStyle = "rgba(8,16,32,0.88)";
-    this.rect(ctx, 24, 24, this.width - 48, 72);
+    this.rect(ctx, 24, 110, this.width - 48, 72);
     ctx.strokeStyle = "#ffd84d";
     ctx.lineWidth = 4;
-    ctx.strokeRect(24, 24, this.width - 48, 72);
+    ctx.strokeRect(24, 110, this.width - 48, 72);
     ctx.fillStyle = "#fff7de";
     ctx.font = "700 18px Arial, sans-serif";
     ctx.textBaseline = "alphabetic";
-    this.wrapText(ctx, this.message, 44, 54, this.width - 92, 22);
+    this.wrapText(ctx, this.message, 44, 140, this.width - 92, 22);
   }
 
   rect(ctx, x, y, w, h) {
@@ -892,7 +883,6 @@ class CloudQuestGame {
   }
 }
 
-CloudQuestGame.MAX_LIVES = 8;
-CloudQuestGame.LIFE_BONUS_EVERY = 100;
+CloudQuestGame.MAX_LIVES = 3;
 
 window.CloudQuestGame = CloudQuestGame;
