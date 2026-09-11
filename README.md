@@ -82,12 +82,21 @@ in the landing band of a platform's right edge (running off is a committed fall,
 so that hit is unavoidable), and the takeoff window for clearing a hazard may
 not fall under a platform (the jump would bonk the ceiling).
 
+Obstacles come in two kinds, both worth exactly one life: a bobbing signal
+blocker and a narrower spike strip. Neither travels horizontally. Every rule
+above is proved at the single x a template declares, so an obstacle that swept
+sideways could walk out of the geometry that was validated and into a pit or
+under a platform. `qa/world-check.cjs` rejects any hazard carrying movement or
+an obstacle kind the engine does not define, and `qa/motion-check.cjs` samples
+each kind over 20 simulated seconds to confirm its box never leaves that x.
+
 ## Checks
 
 ```sh
 node qa/world-check.cjs    # generator geometry and fairness invariants
 node qa/motion-check.cjs   # movement, endless generation, scoring, lives
 node qa/touch-check.cjs    # simultaneous touch controls and cleanup
+node qa/viewport-check.cjs # camera proportions and world coverage on resize
 ```
 
 ## Folder Structure
@@ -109,6 +118,7 @@ node qa/touch-check.cjs    # simultaneous touch controls and cleanup
     world-check.cjs
     motion-check.cjs
     touch-check.cjs
+    viewport-check.cjs
   assets/           coin and power sprites (tools/make_assets.py)
   mascot/           Eva sprite poses
   docs/             sprite generation notes
@@ -146,9 +156,25 @@ game fullscreen with no browser chrome.
 
 ## Mobile playfield
 
-Landscape fills the available viewport with a compact HUD and overlaid thumb
-controls. Portrait keeps controls in a dedicated bottom area. The camera width
-follows the playfield aspect ratio, preserving sprite proportions and physics.
-Use Fullscreen (where supported) to hide browser bars. Resizing or rotating
-keeps the same run and releases held controls. Coin pickups update the score
-without covering the playfield with a message.
+`src/styles.css` is mobile-first: its base rules are the phone layout, and the
+only large media query at the end of the file restores the desktop document
+layout for a mouse-driven window (`min-width: 761px` and `pointer: fine`). A
+tablet keeps the phone layout at any size, because it still plays with thumbs.
+
+On a phone the page is a fixed game viewport rather than a scrolling document.
+The HUD, Pause, and progress bar float over the playfield; the page furniture
+(brand, mission track, footer) is hidden, since the zone banner and score
+already carry that information. Portrait gives the thumb controls a dedicated
+strip below the canvas. Landscape has no height to spare, so the canvas fills
+the screen and the controls float over it. The control deck itself ignores
+touches -- only the stick and buttons take them -- so a resting thumb never
+swallows a tap.
+
+The camera width follows the playfield aspect ratio, preserving sprite
+proportions and physics. Use Fullscreen (where supported) to hide browser bars.
+Resizing or rotating keeps the same run and releases held controls. Coin
+pickups update the score without covering the playfield with a message.
+
+The joystick direction arrows and the Jump chevron are drawn with CSS
+`clip-path`, not text, so they render identically regardless of which glyphs
+the system font happens to carry.

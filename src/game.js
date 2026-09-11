@@ -2,7 +2,6 @@
 const HAZARD_HIT = {
   static: "Unresolved signal hit. Eva recovered the decision trail.",
   spike: "Policy breach. That change went through unreviewed.",
-  patrol: "An unowned change caught you. Eva logged it and moved on.",
 };
 
 class CloudQuestGame {
@@ -195,8 +194,6 @@ class CloudQuestGame {
         w: hazard.w,
         h: hazard.h,
         kind: hazard.kind || "static",
-        span: hazard.span || 0,
-        speed: hazard.speed || 60,
         type: zone.hazardType,
         label: zone.hazardLabels[(index + i) % zone.hazardLabels.length],
         phase: (index * 2 + i) * 0.8,
@@ -439,19 +436,11 @@ class CloudQuestGame {
   }
 
   // Single source of truth for where an obstacle is this frame. Collision and
-  // drawing both call this, so a moving obstacle can never be drawn somewhere
-  // other than where it actually hits.
+  // drawing both call this, so the bob can never be drawn somewhere other than
+  // where it actually hits. No kind travels horizontally: x is always the
+  // position the template declared and the world check validated.
   hazardBox(hazard) {
     const t = performance.now() / 1000 + hazard.phase;
-
-    if (hazard.kind === "patrol") {
-      // Ping-pong along the span, so the sweep stays inside the range the
-      // world checks validated as safe ground.
-      const period = (hazard.span * 2) / hazard.speed;
-      const p = (((t % period) + period) % period) / period;
-      const along = p < 0.5 ? p * 2 : 2 - p * 2;
-      return { x: hazard.x + along * hazard.span, y: hazard.y, w: hazard.w, h: hazard.h };
-    }
 
     // Spikes are dead still: a bobbing spike reads as a bug.
     if (hazard.kind === "spike") {
@@ -732,15 +721,7 @@ class CloudQuestGame {
       ctx.fillStyle = trim;
       this.rect(ctx, box.x + 8, box.y + 7, box.w - 16, 8);
 
-      if (hazard.kind === "patrol") {
-        // Two eyes facing the direction of travel, so a mover is obvious at a
-        // glance and reads differently from a fixed obstacle.
-        const facing = box.x > hazard.x + hazard.span / 2 ? 1 : -1;
-        ctx.fillStyle = "#fff7de";
-        const eye = box.x + box.w / 2 + facing * 6;
-        this.rect(ctx, eye - 5, box.y + 16, 4, 5);
-        this.rect(ctx, eye + 3, box.y + 16, 4, 5);
-      } else if (hazard.label) {
+      if (hazard.label) {
         ctx.fillStyle = "#fff7de";
         ctx.font = "800 9px Arial, sans-serif";
         ctx.fillText(hazard.label, box.x + 5, box.y + 22);

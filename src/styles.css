@@ -1,3 +1,7 @@
+/* Mobile-first. The base rules below are the phone layout: a fixed game
+   viewport with the HUD and thumb controls layered over the playfield.
+   Everything desktop-only lives in the min-width query at the bottom. */
+
 :root {
   color-scheme: dark;
   --bg: #101515;
@@ -10,29 +14,37 @@
   --coin: #ffd84d;
   --cyan: #31e6c2;
   --amber: #ffcf4a;
+
+  /* Playfield metrics. The control deck is a fixed strip at the bottom and
+     the canvas takes the rest, so the two never overlap. */
+  --control-h: 148px;
+  --stick: 112px;
+  --jump: 86px;
+  --safe-t: max(8px, env(safe-area-inset-top));
+  --safe-b: max(10px, env(safe-area-inset-bottom));
+  --safe-l: max(12px, env(safe-area-inset-left));
+  --safe-r: max(12px, env(safe-area-inset-right));
 }
 
 * {
   box-sizing: border-box;
 }
 
-html {
-  min-height: 100%;
-  background: #101515;
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
-  min-height: 100vh;
-  min-height: 100svh;
-  margin: 0;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 34px),
-    linear-gradient(180deg, #142625 0%, #171326 52%, #111515 100%);
+  background: #142625;
   color: var(--text);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
 }
 
 button,
@@ -51,117 +63,124 @@ button {
   font-weight: 900;
   touch-action: manipulation;
   user-select: none;
+  -webkit-user-select: none;
+}
+
+[hidden] { display: none !important; }
+button:disabled { opacity: 0.45; cursor: default; }
+.story-cta:focus-visible,
+button:focus-visible {
+  outline: 3px solid var(--coin);
+  outline-offset: 3px;
 }
 
 .shell {
-  width: min(1220px, calc(100% - 28px));
-  min-height: 100vh;
-  min-height: 100svh;
-  margin: 0 auto;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: 14px;
-  padding: 14px 0;
-  padding-bottom: max(14px, env(safe-area-inset-bottom));
-}
-
-.topbar,
-.footer,
-.top-actions,
-.brand,
-.hud,
-.controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.topbar,
-.footer {
-  justify-content: space-between;
-}
-
-.brand {
-  text-decoration: none;
-}
-
-.brand span:last-child {
-  display: grid;
-  line-height: 1.1;
-}
-
-.brand small,
-.hud span,
-.footer {
-  color: var(--muted);
-  font-size: 0.84rem;
-}
-
-.brand strong,
-.hud strong,
-button,
-.eyebrow {
-  letter-spacing: 0;
-}
-
-.pixel-logo {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--text);
-  background: linear-gradient(135deg, var(--cyan), var(--red));
-  box-shadow: 4px 4px 0 var(--ink);
-  color: var(--text);
-  font-weight: 900;
-}
-
-.top-actions button,
-.controls button {
-  background: var(--panel-2);
+  position: relative;
+  width: 100%;
+  height: 100svh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .game-shell {
-  display: grid;
-  /* hud, score track, mission track, canvas, controls -- all content-sized.
-     The canvas is width-driven (width:100% plus a fixed aspect-ratio), so
-     handing a row the leftover space only left dead space inside the frame. */
-  grid-template-rows: repeat(5, auto);
-  align-content: start;
-  gap: 10px;
+  position: absolute;
+  inset: 0;
+}
+
+/* The brand, mission track and footer are page furniture, not gameplay.
+   A phone screen is worth more as playfield. */
+.brand,
+.mission-track,
+.footer,
+.control-hint {
+  display: none;
+}
+
+/* --- Overlaid chrome ---------------------------------------------------- */
+
+.topbar {
+  position: absolute;
+  z-index: 12;
+  top: var(--safe-t);
+  right: var(--safe-r);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 5px;
+}
+
+.top-actions button {
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  background: rgba(16, 33, 38, 0.87);
+  box-shadow: none;
+  font-size: 11px;
+}
+
+/* Restarting mid-run is a stray-thumb risk beside Pause, and the game-over
+   screen already offers a fresh run. */
+#restartButton {
+  display: none;
 }
 
 .hud {
-  display: grid;
-  grid-template-columns: 1.6fr repeat(3, 1fr);
+  position: absolute;
+  z-index: 10;
+  top: var(--safe-t);
+  left: var(--safe-l);
+  display: flex;
+  align-items: center;
   gap: 10px;
+  max-width: calc(100% - 170px);
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: rgba(16, 33, 38, 0.85);
 }
 
 .hud div {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
   min-width: 0;
-  padding: 10px 12px;
-  border: 3px solid var(--ink);
-  background:
-    linear-gradient(135deg, rgba(49, 230, 194, 0.12), transparent 44%),
-    rgba(20, 34, 38, 0.94);
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.26);
+}
+
+/* The zone banner announces the zone, and the score already implies the
+   signal count, so both panels are dead weight over a phone playfield. */
+.hud div:first-child,
+.hud div:nth-child(2) {
+  display: none;
+}
+
+.hud span {
+  color: var(--muted);
+  font-size: 10px;
 }
 
 .hud strong {
-  display: block;
-  margin-top: 2px;
   overflow: hidden;
   color: var(--coin);
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-
 /* Progress toward the 1000-point finish line. */
 .score-track {
-  position: relative;
-  height: 14px;
-  border: 3px solid var(--ink);
+  position: absolute;
+  z-index: 10;
+  top: calc(var(--safe-t) + 44px);
+  left: var(--safe-l);
+  width: 110px;
+  height: 4px;
+  border-radius: 2px;
   background: rgba(12, 22, 25, 0.72);
   overflow: hidden;
 }
@@ -178,68 +197,176 @@ button,
   .score-track span { transition: none; }
 }
 
-.mission-track {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.mission-track span {
-  min-width: 0;
-  padding: 9px 12px;
-  border: 2px solid rgba(246, 255, 248, 0.2);
-  background: rgba(12, 22, 25, 0.66);
-  color: var(--muted);
-  font-size: 0.84rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mission-track strong {
-  color: var(--text);
-  margin-right: 6px;
-}
-
-.mission-track span.is-active {
-  border-color: var(--cyan);
-  background: rgba(49, 230, 194, 0.14);
-  color: var(--text);
-}
-
-.mission-track span.is-complete {
-  border-color: var(--amber);
-}
+/* --- Playfield ---------------------------------------------------------- */
 
 .canvas-frame {
-  position: relative;
-  border: 5px solid var(--ink);
-  background:
-    linear-gradient(135deg, rgba(49, 230, 194, 0.1), transparent 38%),
-    var(--ink);
-  box-shadow: 0 18px 0 rgba(0, 0, 0, 0.22);
+  position: absolute;
+  inset: 0 0 var(--control-h);
+  background: var(--ink);
 }
 
 canvas {
   display: block;
   width: 100%;
-  height: auto;
-  max-height: none;
-  aspect-ratio: 16 / 9;
+  height: 100%;
   image-rendering: auto;
+  object-fit: fill;
   touch-action: none;
 }
 
-.story-modal {
+/* --- Thumb controls ----------------------------------------------------- */
+
+.controls {
   position: absolute;
-  inset: 24px;
-  display: none;
-  grid-template-columns: minmax(0, 1fr) minmax(150px, 210px);
+  z-index: 11;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
   align-items: center;
-  gap: 22px;
-  max-width: 820px;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  height: var(--control-h);
+  padding: 8px max(20px, env(safe-area-inset-right)) var(--safe-b) max(20px, env(safe-area-inset-left));
+  gap: 16px;
+  background: linear-gradient(0deg, #0b1727, #152c36);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  /* The deck is only a backdrop; the stick and buttons opt back in below, so
+     a thumb resting on the strip never swallows a touch. */
+  pointer-events: none;
+}
+
+.joystick-group,
+.action-controls {
+  pointer-events: auto;
+}
+
+.joystick-group {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.joystick {
+  position: relative;
+  width: var(--stick);
+  height: var(--stick);
+  border: 2px solid rgba(255, 255, 255, 0.44);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(82, 122, 123, 0.6), rgba(25, 50, 56, 0.53));
+  box-shadow: inset 0 3px 16px rgba(8, 16, 32, 0.6), 0 4px 0 var(--ink);
+  touch-action: none;
+  cursor: grab;
+}
+
+.joystick.is-active {
+  border-color: var(--cyan);
+  cursor: grabbing;
+}
+
+/* Drawn in CSS rather than set as text: the direction hints must render the
+   same everywhere, with no dependency on the font carrying arrow glyphs. */
+.joystick-arrows {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 13px;
+  pointer-events: none;
+}
+
+.joystick-arrows i {
+  width: 11px;
+  height: 16px;
+  background: rgba(246, 255, 248, 0.45);
+}
+
+.joystick-arrows i:first-child {
+  clip-path: polygon(100% 0, 100% 100%, 0 50%);
+}
+
+.joystick-arrows i:last-child {
+  clip-path: polygon(0 0, 0 100%, 100% 50%);
+}
+
+.joystick-thumb {
+  position: absolute;
+  left: 30%;
+  top: 30%;
+  width: 40%;
+  height: 40%;
+  border: 2px solid var(--cyan);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #63f5d6, #229888);
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.53);
+  pointer-events: none;
+}
+
+.action-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.controls button {
+  touch-action: none;
+}
+
+.controls .jump-button {
+  display: grid;
+  align-content: center;
+  width: var(--jump);
+  height: var(--jump);
+  min-width: var(--jump);
+  border-radius: 50%;
+  background: rgba(49, 230, 194, 0.85);
+  box-shadow: 0 5px 0 #137266;
+  color: var(--ink);
+}
+
+.jump-glyph {
+  width: 18px;
+  height: 12px;
+  margin: 0 auto 3px;
+  background: currentColor;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.controls .talk-button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 14px;
+  background: rgba(22, 44, 57, 0.79);
+  font-size: 11px;
+}
+
+.controls button.is-held {
+  filter: brightness(1.25);
+  transform: translateY(3px);
+  box-shadow: none;
+}
+
+/* --- Story screens ------------------------------------------------------ */
+
+.story-modal {
+  position: fixed;
+  inset: 12px;
+  z-index: 30;
+  display: none;
+  grid-template-columns: 1fr;
+  justify-items: start;
+  align-content: start;
+  gap: 10px;
+  width: auto;
+  max-width: 600px;
+  height: fit-content;
+  max-height: calc(100dvh - 24px);
   margin: auto;
-  padding: clamp(20px, 4vw, 34px);
+  padding: 16px;
   border: 4px solid var(--ink);
   background:
     linear-gradient(135deg, rgba(49, 230, 194, 0.16), transparent 45%),
@@ -247,6 +374,7 @@ canvas {
     rgba(20, 34, 38, 0.97);
   box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.34);
   backdrop-filter: blur(8px);
+  overflow: auto;
 }
 
 .story-modal.is-open {
@@ -254,44 +382,10 @@ canvas {
 }
 
 .story-copy {
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
-}
-
-.modal-art {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  align-items: end;
-  min-height: 230px;
-}
-
-.modal-hero {
-  display: none;
-  width: min(220px, 28vw);
-  max-width: 100%;
-  max-height: 270px;
-  object-fit: contain;
-  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.38));
-  pointer-events: none;
-}
-
-.modal-hero.is-visible {
-  display: block;
-}
-
-.modal-mascot {
-  position: absolute;
-  right: -12px;
-  bottom: -10px;
-  display: none;
-  width: min(116px, 14vw);
-  max-width: 100%;
-  filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.35));
-  pointer-events: none;
-}
-
-.modal-mascot.is-visible {
-  display: block;
+  overflow: hidden;
 }
 
 .eyebrow {
@@ -303,21 +397,24 @@ canvas {
 
 h1 {
   margin: 0 0 14px;
-  font-size: clamp(2rem, 5vw, 3.5rem);
-  line-height: 1.05;
   max-width: 100%;
+  font-size: 1.62rem;
+  line-height: 1.08;
   overflow-wrap: break-word;
   text-wrap: balance;
 }
 
 p {
   margin-top: 0;
-  line-height: 1.65;
   color: #eef5ff;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .story-modal button {
-  padding: 0 18px;
+  min-height: 42px;
+  padding: 0 14px;
 }
 
 .story-cta {
@@ -333,212 +430,415 @@ p {
   text-decoration: none;
 }
 
-[hidden] { display: none !important; }
-button:disabled { opacity: 0.45; cursor: default; }
-.story-cta:focus-visible, button:focus-visible {
-  outline: 3px solid var(--coin);
-  outline-offset: 3px;
+.modal-art {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-items: end;
+  width: 100%;
+  min-height: 68px;
 }
 
-.controls {
-  justify-content: center;
-  flex-wrap: wrap;
-  touch-action: none;
+.modal-hero {
+  display: none;
+  width: min(92px, 30vw);
+  max-width: 100%;
+  max-height: 98px;
+  object-fit: contain;
+  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.38));
+  pointer-events: none;
 }
 
-.controls button {
-  min-width: 96px;
+.modal-hero.is-visible {
+  display: block;
 }
 
-.footer a {
-  color: var(--coin);
+.modal-mascot {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  display: none;
+  width: 58px;
+  max-width: 100%;
+  filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.35));
+  pointer-events: none;
 }
 
-@media (max-width: 760px) {
-  html,
-  body {
-    width: 100%;
-    max-width: 100%;
-    overflow-x: hidden;
-  }
+.modal-mascot.is-visible {
+  display: block;
+}
 
-  .shell {
-    width: 100%;
-    max-width: 100%;
-    padding: 8px 0;
-    padding-right: 7px;
-    padding-left: 7px;
-    padding-bottom: max(8px, env(safe-area-inset-bottom));
-    gap: 8px;
-  }
+/* --- Small phones ------------------------------------------------------- */
 
-  .topbar,
-  .game-shell,
-  .hud,
-  .mission-track,
-  .canvas-frame,
-  .controls,
-  .footer {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-  }
-
-  .topbar,
-  .footer {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .top-actions {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  /* Overrides the shared .topbar/.footer column stacking above: keeping the
-     brand and buttons on one row hands about 100px back to the canvas. The
-     footer stays stacked, since it sits below the fold either way. */
-  .topbar {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-  }
-
-  .top-actions button {
-    min-height: 40px;
-    padding: 8px 12px;
-    font-size: 0.8rem;
-  }
-
-  .brand small {
-    font-size: 0.7rem;
-  }
-
-  .hud {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-  }
-
-  .hud span {
-    font-size: 0.7rem;
-  }
-
-  .hud strong {
-    font-size: 0.98rem;
-  }
-
-  /* On a phone these three panels truncate to "Govern..." / "Cost and ...",
-     so they cost about 90px of canvas to say nothing. The HUD already names
-     the current zone, and the progress bar already shows the stage. */
-  .mission-track {
-    display: none;
-  }
-
-  .mission-track span {
-    padding: 7px 9px;
-    font-size: 0.72rem;
-    overflow-wrap: anywhere;
-  }
-
-  .hud div {
-    padding: 5px 8px;
-  }
-
-  .hud div:first-child {
-    grid-column: 1 / -1;
-  }
-
-  canvas {
-    max-height: none;
-  }
-
-  .canvas-frame {
-    border-width: 3px;
-    box-shadow: 0 10px 0 rgba(0, 0, 0, 0.22);
-  }
-
-  .story-modal {
-    position: fixed;
-    inset: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
-    z-index: 20;
-    grid-template-columns: 1fr;
-    justify-items: start;
-    align-content: start;
-    gap: 10px;
-    width: auto;
-    max-width: none;
-    height: fit-content;
-    max-height: calc(100svh - 24px);
-    overflow: auto;
-    padding: 16px;
-  }
-
-  .story-copy {
-    width: 100%;
-    max-width: 100%;
-    overflow: hidden;
-  }
-
-  h1 {
-    font-size: 1.62rem;
-    line-height: 1.08;
-  }
-
-  p {
-    font-size: 0.92rem;
-    line-height: 1.45;
-    overflow-wrap: anywhere;
-  }
-
-  .story-modal button {
-    min-height: 42px;
-    padding: 0 14px;
-  }
-
-  .modal-mascot {
-    right: 2px;
-    bottom: 2px;
-    width: 58px;
-  }
-
-  .modal-art {
-    width: 100%;
-    min-height: 68px;
-  }
-
-  .modal-hero {
-    width: min(92px, 30vw);
-    max-height: 98px;
+@media (max-width: 360px) {
+  :root {
+    --stick: 100px;
+    --jump: 78px;
   }
 
   .controls {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    position: sticky;
-    bottom: max(8px, env(safe-area-inset-bottom));
-    z-index: 5;
-    padding: 6px;
+    padding-left: 8px;
+    padding-right: 8px;
     gap: 8px;
-    border: 3px solid var(--ink);
-    background: rgba(11, 16, 29, 0.86);
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
-    backdrop-filter: blur(8px);
   }
 
-  .controls button {
-    min-height: 48px;
-    min-width: 0;
-    padding: 0 6px;
-    font-size: 0.88rem;
-    touch-action: none;
-    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.28);
+  .action-controls {
+    gap: 8px;
   }
 }
 
+/* --- Phone landscape ---------------------------------------------------- */
 
+@media (orientation: landscape) and (max-height: 540px) {
+  :root {
+    --control-h: 112px;
+    --stick: 92px;
+    --jump: 78px;
+  }
 
-@media (min-width: 761px) and (max-height: 760px) {
+  /* A short screen cannot spare a strip, so the controls float over the
+     playfield instead of sitting below it. */
+  .canvas-frame {
+    inset: 0;
+  }
+
+  .controls {
+    background: none;
+  }
+
+  .hud div:first-child {
+    display: flex;
+  }
+
+  .hud div:first-child span {
+    display: none;
+  }
+
+  .hud strong {
+    font-size: 12px;
+  }
+
+  .score-track {
+    top: calc(var(--safe-t) + 38px);
+  }
+
+  .story-modal {
+    padding: 16px 22px;
+  }
+
+  .modal-art {
+    display: none;
+  }
+
+  .story-modal h1 {
+    margin-bottom: 8px;
+    font-size: 24px;
+  }
+
+  .story-modal p {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .eyebrow {
+    margin-bottom: 6px;
+    font-size: 11px;
+  }
+}
+
+/* --- Desktop ------------------------------------------------------------
+   A mouse-driven window big enough for the whole page: the game becomes a
+   document again, with the canvas boxed at 16/9 and the chrome back in
+   normal flow. Touch devices keep the game-viewport layout above at any
+   size, since a tablet still plays with thumbs. */
+
+@media (min-width: 761px) and (min-height: 541px) and (pointer: fine) {
+  html,
+  body {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+    overflow-x: hidden;
+  }
+
+  html {
+    background: #101515;
+  }
+
+  body {
+    min-height: 100svh;
+    background:
+      linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 34px),
+      linear-gradient(180deg, #142625 0%, #171326 52%, #111515 100%);
+  }
+
+  .shell {
+    position: static;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    width: min(1220px, calc(100% - 28px));
+    height: auto;
+    min-height: 100svh;
+    margin: 0 auto;
+    gap: 14px;
+    padding: 14px 0;
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+    overflow: visible;
+  }
+
+  .game-shell {
+    position: static;
+    display: grid;
+    /* hud, score track, mission track, canvas, controls -- all content-sized.
+       The canvas is width-driven (width:100% plus a fixed aspect-ratio), so
+       handing a row the leftover space only left dead space inside the frame. */
+    grid-template-rows: repeat(5, auto);
+    align-content: start;
+    gap: 10px;
+  }
+
+  .topbar,
+  .footer,
+  .top-actions,
+  .brand,
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .topbar,
+  .footer {
+    position: static;
+    justify-content: space-between;
+  }
+
+  .brand {
+    text-decoration: none;
+  }
+
+  .brand span:last-child {
+    display: grid;
+    line-height: 1.1;
+  }
+
+  .brand small,
+  .footer {
+    color: var(--muted);
+    font-size: 0.84rem;
+  }
+
+  .footer a {
+    color: var(--coin);
+  }
+
+  .pixel-logo {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--text);
+    background: linear-gradient(135deg, var(--cyan), var(--red));
+    box-shadow: 4px 4px 0 var(--ink);
+    color: var(--text);
+    font-weight: 900;
+  }
+
+  .top-actions button,
+  .controls button {
+    background: var(--panel-2);
+  }
+
+  .top-actions button {
+    min-height: 44px;
+    padding: 0 14px;
+    border: 3px solid var(--ink);
+    border-radius: 0;
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3);
+    font-size: 1rem;
+  }
+
+  #restartButton {
+    display: inline-block;
+  }
+
+  .hud {
+    position: static;
+    display: grid;
+    grid-template-columns: 1.6fr repeat(3, 1fr);
+    max-width: none;
+    gap: 10px;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .hud div,
+  .hud div:first-child,
+  .hud div:nth-child(2) {
+    display: block;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 3px solid var(--ink);
+    background:
+      linear-gradient(135deg, rgba(49, 230, 194, 0.12), transparent 44%),
+      rgba(20, 34, 38, 0.94);
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.26);
+  }
+
+  .hud span {
+    color: var(--muted);
+    font-size: 0.84rem;
+  }
+
+  .hud strong {
+    display: block;
+    margin-top: 2px;
+    font-size: 1rem;
+  }
+
+  .score-track {
+    position: static;
+    width: auto;
+    height: 14px;
+    border: 3px solid var(--ink);
+    border-radius: 0;
+  }
+
+  .mission-track {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .mission-track span {
+    min-width: 0;
+    padding: 9px 12px;
+    border: 2px solid rgba(246, 255, 248, 0.2);
+    background: rgba(12, 22, 25, 0.66);
+    color: var(--muted);
+    font-size: 0.84rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mission-track strong {
+    margin-right: 6px;
+    color: var(--text);
+  }
+
+  .mission-track span.is-active {
+    border-color: var(--cyan);
+    background: rgba(49, 230, 194, 0.14);
+    color: var(--text);
+  }
+
+  .mission-track span.is-complete {
+    border-color: var(--amber);
+  }
+
+  .canvas-frame {
+    position: relative;
+    inset: auto;
+    border: 5px solid var(--ink);
+    background:
+      linear-gradient(135deg, rgba(49, 230, 194, 0.1), transparent 38%),
+      var(--ink);
+    box-shadow: 0 18px 0 rgba(0, 0, 0, 0.22);
+  }
+
+  canvas {
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .controls {
+    position: static;
+    justify-content: space-between;
+    height: auto;
+    padding: 12px 16px;
+    gap: 16px;
+    background: none;
+    pointer-events: auto;
+  }
+
+  .control-hint {
+    display: block;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+  }
+
+  .joystick {
+    --stick: 120px;
+    border-color: rgba(49, 230, 194, 0.45);
+    background: radial-gradient(circle, #243e40 0 30%, #142527 32% 65%, #294346 67%);
+  }
+
+  .controls .jump-button {
+    --jump: 92px;
+    background: var(--cyan);
+  }
+
+  .controls .talk-button {
+    min-width: 52px;
+    min-height: 48px;
+    background: var(--panel-2);
+    font-size: 1rem;
+  }
+
+  .story-modal {
+    position: absolute;
+    inset: 24px;
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 210px);
+    justify-items: stretch;
+    align-items: center;
+    align-content: center;
+    gap: 22px;
+    max-width: 820px;
+    max-height: none;
+    margin: auto;
+    padding: clamp(20px, 4vw, 34px);
+    overflow: visible;
+  }
+
+  .story-modal button {
+    min-height: 44px;
+    padding: 0 18px;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    line-height: 1.05;
+  }
+
+  p {
+    font-size: 1rem;
+    line-height: 1.65;
+    overflow-wrap: normal;
+  }
+
+  .modal-art {
+    width: auto;
+    min-height: 230px;
+  }
+
+  .modal-hero {
+    width: min(220px, 28vw);
+    max-height: 270px;
+  }
+
+  .modal-mascot {
+    right: -12px;
+    bottom: -10px;
+    width: min(116px, 14vw);
+  }
+}
+
+/* Desktop in a short window: tighten the vertical rhythm so the canvas still
+   fits without scrolling. */
+@media (min-width: 761px) and (min-height: 541px) and (max-height: 760px) and (pointer: fine) {
   .shell {
     gap: 9px;
     padding-top: 9px;
@@ -551,123 +851,4 @@ button:disabled { opacity: 0.45; cursor: default; }
   .footer {
     font-size: 0.78rem;
   }
-}
-
-/* Thumb controls stay below the playfield, clear of the character and hazards. */
-.controls {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: nowrap;
-  padding: 12px max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left));
-  gap: 16px;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-.joystick-group { display: grid; justify-items: center; gap: 6px; }
-.joystick {
-  position: relative;
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  border: 2px solid rgba(49, 230, 194, .45);
-  background: radial-gradient(circle, #243e40 0 30%, #142527 32% 65%, #294346 67%);
-  box-shadow: inset 0 3px 16px #08102099, 0 4px 0 #081020;
-  touch-action: none;
-  cursor: grab;
-}
-.joystick-arrows { position: absolute; inset: 0; display: grid; place-content: center; color: var(--muted); font-size: 36px; }
-.joystick-thumb {
-  position: absolute;
-  left: 30%; top: 30%; width: 40%; height: 40%;
-  border-radius: 50%; border: 2px solid var(--cyan);
-  background: linear-gradient(145deg, #63f5d6, #229888);
-  box-shadow: 0 5px 10px #0008;
-  pointer-events: none;
-}
-.joystick.is-active { border-color: var(--cyan); cursor: grabbing; }
-.control-hint { font-size: 10px; letter-spacing: .12em; color: var(--muted); }
-.action-controls { display: flex; align-items: center; gap: 14px; }
-.controls .jump-button {
-  display: grid; align-content: center; gap: 0;
-  width: 92px; height: 92px; min-width: 92px;
-  border-radius: 50%; background: var(--cyan); color: var(--ink);
-  box-shadow: 0 5px 0 #137266;
-  touch-action: none;
-}
-.jump-button span { font-size: 30px; line-height: 1; }
-.controls .talk-button { min-width: 52px; min-height: 48px; border-radius: 14px; padding: 0 10px; touch-action: none; }
-.controls button.is-held { filter: brightness(1.25); transform: translateY(3px); box-shadow: none; }
-
-@media (max-width: 360px) {
-  .controls { padding-left: 8px; padding-right: 8px; gap: 8px; }
-  .joystick { width: 104px; height: 104px; }
-  .action-controls { gap: 8px; }
-  .controls .jump-button { width: 80px; height: 80px; min-width: 80px; }
-}
-
-/* Mobile is a game viewport, with chrome layered over the world. */
-@media (max-width: 760px), (pointer: coarse), (orientation: landscape) and (max-height: 500px) {
-  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
-  .shell {
-    position: relative; width: 100%; max-width: none;
-    height: 100svh; height: 100dvh; min-height: 0;
-    margin: 0; padding: 0; display: block;
-    overflow: hidden; background: #142625;
-  }
-  .game-shell { position: absolute; inset: 0; display: block; width: 100%; }
-  .brand, .footer, .mission-track { display: none; }
-  .topbar {
-    display: flex; position: absolute; z-index: 12;
-    top: max(8px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right));
-    width: auto; padding: 0;
-  }
-  .top-actions { gap: 5px; flex-wrap: nowrap; }
-  .top-actions button { min-height: 36px; padding: 4px 8px; font-size: 11px; border: 1px solid #ffffff40; border-radius: 8px; background: #102126df; box-shadow: none; }
-  #restartButton { display: none; }
-  .hud {
-    position: absolute; z-index: 10;
-    left: max(10px, env(safe-area-inset-left)); top: max(8px, env(safe-area-inset-top));
-    width: auto; max-width: calc(100% - 160px);
-    display: flex; gap: 10px; align-items: center;
-    padding: 7px 10px; border-radius: 10px; background: #102126d9;
-  }
-  .hud div { border: 0; padding: 0; box-shadow: none; background: none; display: flex; gap: 4px; align-items: baseline; }
-  .hud div:first-child { display: none; }
-  .hud div:nth-child(2) { display: none; }
-  .hud span { font-size: 10px; }
-  .hud strong { margin: 0; font-size: 13px; }
-  .score-track { position: absolute; z-index: 10; top: 52px; left: max(10px, env(safe-area-inset-left)); width: 110px; height: 4px; border: 0; border-radius: 2px; }
-  .canvas-frame { position: absolute; inset: 0 0 146px; width: 100%; height: auto; margin: 0; border: 0; box-shadow: none; }
-  canvas { width: 100%; height: 100%; max-height: none; aspect-ratio: auto !important; object-fit: fill; }
-  .controls {
-    position: absolute; z-index: 11; bottom: 0; left: 0; right: 0;
-    width: 100%; height: 146px; margin: 0; border: 0; border-radius: 0;
-    padding: 8px max(20px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
-    background: linear-gradient(0deg, #0b1727, #152c36); box-shadow: none; backdrop-filter: none;
-    pointer-events: none;
-  }
-  .joystick-group, .action-controls { pointer-events: auto; }
-  .joystick { width: 108px; height: 108px; background: radial-gradient(circle, #527a7b99, #19323888); border-color: #ffffff70; }
-  .control-hint { display: none; }
-  .controls .jump-button { width: 86px; height: 86px; min-width: 86px; background: #31e6c2d9; }
-  .controls .talk-button { min-width: 44px; min-height: 44px; font-size: 11px; background: #162c39c9; }
-  .action-controls { gap: 12px; }
-  .story-modal { position: fixed; inset: 12px; z-index: 30; margin: auto; width: auto; max-width: 600px; height: fit-content; max-height: calc(100dvh - 24px); overflow: auto; }
-}
-@media (orientation: landscape) and (pointer: coarse), (orientation: landscape) and (max-height: 500px) {
-  .canvas-frame { inset: 0; }
-  .controls { height: 112px; background: none; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
-  .joystick { width: 92px; height: 92px; }
-  .controls .jump-button { width: 78px; height: 78px; min-width: 78px; }
-  .control-hint { display: none; }
-  .hud div:first-child { display: flex; }
-  .hud div:first-child span { display: none; }
-  .hud strong { font-size: 12px; }
-  .score-track { top: 46px; }
-  .story-modal { padding: 16px 22px; }
-  .modal-art { display: none; }
-  .story-modal h1 { font-size: 24px; margin-bottom: 8px; }
-  .story-modal p { font-size: 13px; line-height: 1.45; }
-  .eyebrow { font-size: 11px; margin-bottom: 6px; }
 }

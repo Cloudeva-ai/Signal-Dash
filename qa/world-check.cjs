@@ -47,6 +47,15 @@ const BLOCK_H = 30;
 const PIT_CLEARANCE = 200;
 const PLAYER_W = Number(game.match(/\n      w: (\d+),/)[1]);
 
+// Read the obstacle kinds off game.js rather than listing them here, so a kind
+// added to the engine without a rule in this file is caught as unknown.
+const HAZARD_KINDS = new Set(
+  (game.match(/const HAZARD_HIT = \{([\s\S]*?)\n\};/)[1].match(/^\s*(\w+):/gm) || []).map((line) =>
+    line.trim().replace(':', ''),
+  ),
+);
+assert.ok(HAZARD_KINDS.size > 0, 'game.js must define at least one obstacle kind');
+
 // Where a player ends up after walking off a platform edge at `edgeX` whose top
 // is at `topY`. They keep full horizontal speed and cannot jump on the way
 // down, so this band is committed ground.
@@ -146,30 +155,30 @@ for (const chunk of chunks) {
   }
 
   for (const hazard of chunk.hazards || []) {
-    // A patrol obstacle occupies every position along its span, so all of the
-    // rules below are checked against the whole swept range.
-    const span = hazard.span || 0;
-    const sweepFrom = hazard.x;
-    const sweepTo = hazard.x + hazard.w + span;
-    const where = span ? `${sweepFrom}..${sweepTo} (patrol)` : `${sweepFrom}`;
+    const where = `${hazard.x}`;
+
+    // Obstacles hold still. A kind that travels would invalidate every rule
+    // below, all of which are checked against the single declared position, so
+    // an unknown kind is rejected outright rather than silently accepted.
+    if (hazard.kind && !HAZARD_KINDS.has(hazard.kind)) {
+      flag(chunk.id, `hazard at ${where} has unknown kind "${hazard.kind}"`);
+    }
+    if (hazard.span || hazard.speed) {
+      flag(chunk.id, `hazard at ${where} declares movement, but obstacles must hold still`);
+    }
 
     if (hazard.y + hazard.h !== world.groundY) {
       flag(chunk.id, `hazard at ${where} does not rest on the ground line`);
     }
-    if (span && !hazard.speed) {
-      flag(chunk.id, `patrol hazard at ${where} needs a speed`);
-    }
 
-    // Every position along the sweep needs ground under it, so a patrol can
-    // never walk out over a pit.
-    const covered = ground.some((s) => sweepFrom >= s.x && sweepTo <= s.x + s.w);
+    const covered = ground.some((s) => hazard.x >= s.x && hazard.x + hazard.w <= s.x + s.w);
     if (!covered) flag(chunk.id, `hazard at ${where} is not fully over one ground slab`);
 
     // A hazard directly under a platform cannot be jumped even when its
     // takeoff window is clear: the arc rises into the platform's underside,
     // the bonk cancels the jump, and the player drops back onto the hazard.
     for (const block of blocks) {
-      if (sweepFrom < block.x + block.w && sweepTo > block.x - PLAYER_W) {
+      if (hazard.x < block.x + block.w && hazard.x + hazard.w > block.x - PLAYER_W) {
         flag(
           chunk.id,
           `hazard at ${where} sits under the block at ${block.x}..${block.x + block.w}, so a jump ` +
@@ -183,7 +192,7 @@ for (const chunk of chunks) {
     // damage the player cannot avoid. Keep hazards out of every band.
     for (const block of blocks) {
       const [from, to] = landingBand(block.x + block.w, block.y);
-      if (sweepFrom < to && sweepTo > from) {
+      if (hazard.x < to && hazard.x + hazard.w > from) {
         flag(
           chunk.id,
           `hazard at ${where} reaches the landing band ${from}..${to} of the block ending at ` +
@@ -195,21 +204,17 @@ for (const chunk of chunks) {
     // Clearing a hazard means taking off inside a narrow window before it. If a
     // platform hangs over that window, the jump bonks its underside and dies,
     // and the hazard becomes impossible to get over at all.
-    // Checked at both ends of the sweep, since a patrol has to be clearable
-    // wherever it happens to be when the player arrives.
-    for (const at of span ? [hazard.x, hazard.x + span] : [hazard.x]) {
-      const [takeoffFrom, takeoffTo] = takeoffWindow({ ...hazard, x: at });
-      if (takeoffTo < takeoffFrom) {
-        flag(chunk.id, `hazard at ${where} is too wide to clear in one jump`);
-      }
-      for (const block of blocks) {
-        if (takeoffFrom < block.x + block.w && takeoffTo > block.x - PLAYER_W) {
-          flag(
-            chunk.id,
-            `hazard at ${where} can only be jumped from ${takeoffFrom}..${takeoffTo}, which is ` +
-              `under the block at ${block.x}..${block.x + block.w}, so the jump is blocked overhead`,
-          );
-        }
+    const [takeoffFrom, takeoffTo] = takeoffWindow(hazard);
+    if (takeoffTo < takeoffFrom) {
+      flag(chunk.id, `hazard at ${where} is too wide to clear in one jump`);
+    }
+    for (const block of blocks) {
+      if (takeoffFrom < block.x + block.w && takeoffTo > block.x - PLAYER_W) {
+        flag(
+          chunk.id,
+          `hazard at ${where} can only be jumped from ${takeoffFrom}..${takeoffTo}, which is ` +
+            `under the block at ${block.x}..${block.x + block.w}, so the jump is blocked overhead`,
+        );
       }
     }
   }

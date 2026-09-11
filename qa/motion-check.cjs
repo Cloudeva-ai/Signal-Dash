@@ -121,7 +121,7 @@ const autopilot = () => {
 
   const runwayLeft = surface.x + surface.w - (p.x + p.w);
   // Also hop obstacles coming up on the surface underfoot. Positions come from
-  // hazardBox rather than the template x, so a patrol is dodged where it
+  // hazardBox rather than the template x, so an obstacle is dodged where it
   // actually is. Without this the bot walks into an obstacle, gets knocked
   // back, and never makes progress -- which measures the bot, not the world.
   const obstacle = game.hazards.some((h) => {
@@ -301,16 +301,14 @@ assert.ok(game.chunks.length >= 3, 'restart must rebuild the world');
 console.log('PASS: restart resets score, lives, zone and world');
 
 // --- obstacle kinds -------------------------------------------------------
-// Every kind must cost exactly one life and go through the same respawn, and a
-// patrol must stay inside the span the world check validated as safe ground.
+// Every kind must cost exactly one life and go through the same respawn.
 const chunkDefs = scope.window.RCQ_CHUNKS;
 const kinds = new Set();
 for (const c of chunkDefs) for (const h of c.hazards || []) kinds.add(h.kind || 'static');
 assert.ok(kinds.has('static'), 'expected static obstacles');
 assert.ok(kinds.has('spike'), 'expected spike obstacles');
-assert.ok(kinds.has('patrol'), 'expected patrol obstacles');
 
-for (const kind of ['static', 'spike', 'patrol']) {
+for (const kind of ['static', 'spike']) {
   game = newGame();
   game.startLevel();
   const before = game.lives;
@@ -319,7 +317,7 @@ for (const kind of ['static', 'spike', 'patrol']) {
   // Drop one obstacle of this kind straight onto the player.
   game.hazards = [{
     x: player.x, y: player.y + player.h - 28, w: 44, h: 28,
-    kind, span: kind === 'patrol' ? 60 : 0, speed: 60, phase: 0, type: 'noise', label: 'TEST',
+    kind, phase: 0, type: 'noise', label: 'TEST',
   }];
   player.invuln = 0;
   game.checkHazards(1 / 60);
@@ -331,26 +329,35 @@ for (const kind of ['static', 'spike', 'patrol']) {
 }
 console.log(`PASS: all ${kinds.size} obstacle kinds cost exactly one life and respawn safely`);
 
-// A patrol's drawn/collided box must never leave its declared span, or it
-// could wander over a pit the world check cleared as safe.
+// No obstacle travels horizontally. Everything the world check proves safe --
+// ground cover, takeoff window, landing bands -- is proved at the single x a
+// template declares, so a kind that drifted off that x would walk straight out
+// of the validated geometry and into a pit or under a platform.
 game = newGame();
-const patrol = { x: 500, y: 416, w: 44, h: 28, kind: 'patrol', span: 120, speed: 60, phase: 0 };
-let minX = Infinity;
-let maxX = -Infinity;
-for (let ms = 0; ms < 20000; ms += 50) {
-  scope.performance.now = () => ms;
-  const box = game.hazardBox(patrol);
-  minX = Math.min(minX, box.x);
-  maxX = Math.max(maxX, box.x);
+for (const kind of kinds) {
+  const hazard = { x: 500, y: 416, w: 44, h: 28, kind, phase: 0 };
+  const xs = new Set();
+  const ys = new Set();
+  for (let ms = 0; ms < 20000; ms += 50) {
+    scope.performance.now = () => ms;
+    const box = game.hazardBox(hazard);
+    xs.add(Math.round(box.x * 100) / 100);
+    ys.add(Math.round(box.y * 100) / 100);
+  }
+  assert.deepEqual(
+    [...xs],
+    [hazard.x],
+    `a ${kind} obstacle must hold the x its template declared, but swept ${[...xs].join()}`,
+  );
+  // The bob is vertical only, and a spike does not move at all.
+  if (kind === 'static') {
+    assert.ok(ys.size > 1, 'a static obstacle still bobs in place');
+  } else {
+    assert.deepEqual([...ys], [hazard.y], `a ${kind} obstacle must not move at all`);
+  }
 }
 scope.performance.now = () => 100;
-assert.ok(minX >= patrol.x - 0.01, `patrol went left of its span: ${minX} < ${patrol.x}`);
-assert.ok(
-  maxX <= patrol.x + patrol.span + 0.01,
-  `patrol went right of its span: ${maxX} > ${patrol.x + patrol.span}`,
-);
-assert.ok(maxX - minX > patrol.span * 0.9, 'a patrol must actually sweep most of its span');
-console.log(`PASS: a patrol sweeps ${Math.round(minX)}..${Math.round(maxX)}, inside its ${patrol.span}px span`);
+console.log(`PASS: all ${kinds.size} obstacle kinds hold the x their template declared`);
 
 // --- respawn footing ------------------------------------------------------
 // A respawn point near a slab's right edge must clamp onto that slab, not fall

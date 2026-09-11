@@ -128,16 +128,19 @@ window.RCQ_ZONES = [
 //      200px away from them. Wide crossings use ground-level islands, which
 //      have no underside to bonk.
 //
-// Obstacle kinds, all of which cost exactly one life:
+// Obstacle kinds, both of which cost exactly one life:
 //   static  a bobbing signal blocker, the default
 //   spike   a still saw-tooth strip, narrower so it is quicker to clear
-//   patrol  walks back and forth along `span` at `speed` px/s
+//
+// Every obstacle holds its ground. Nothing sweeps horizontally, so what a
+// player reads on approach is where the hit actually is, and the timing of a
+// jump never depends on when they happened to arrive.
 //
 // Obstacles obey two more fairness rules, also enforced by the world check: an
 // obstacle may not sit under a platform (the jump over it would bonk the
 // underside and drop the player back onto it), and may not sit in the landing
 // band of a platform's right edge (running off is a committed fall, so that
-// hit is unavoidable). For a patrol both are checked across the whole sweep.
+// hit is unavoidable).
 //
 // `ground` slabs sit at groundY. `blocks` carry an explicit y.
 // `coins` and `hazards` are y-positioned by the template so they always rest on
@@ -211,7 +214,7 @@ window.RCQ_CHUNKS = [
     ],
     hazards: [
       { x: 100, y: 416, w: 44, h: 28 },
-      { x: 700, y: 416, w: 44, h: 28, kind: "patrol", span: 100, speed: 55 },
+      { x: 700, y: 416, w: 44, h: 28 },
     ],
   },
   {
@@ -226,8 +229,9 @@ window.RCQ_CHUNKS = [
     ],
     hazards: [
       { x: 80, y: 416, w: 44, h: 28 },
-      // Short span: the middle island is only 220px wide and a coin sits on it.
-      { x: 420, y: 416, w: 44, h: 28, kind: "patrol", span: 60, speed: 50 },
+      // Sits at the left end of the middle island, leaving the rest of its
+      // 220px for the landing and the coin.
+      { x: 420, y: 416, w: 44, h: 28 },
     ],
   },
   {
@@ -326,8 +330,11 @@ window.RCQ_CHUNKS = [
     ],
   },
   {
-    id: "patrol-yard",
+    id: "wide-yard",
     weight: 2,
+    // The loose-spacing course: one obstacle per third of the chunk, each with
+    // a coin just before it, so the rhythm is approach-collect-jump rather
+    // than noise-field's tighter three-in-a-row.
     ground: [{ x: 0, w: 960 }],
     blocks: [],
     coins: [
@@ -336,8 +343,8 @@ window.RCQ_CHUNKS = [
       { x: 780, y: 400 },
     ],
     hazards: [
-      { x: 200, y: 416, w: 44, h: 28, kind: "patrol", span: 120, speed: 60 },
-      { x: 560, y: 416, w: 44, h: 28, kind: "patrol", span: 120, speed: 70 },
+      { x: 200, y: 416, w: 44, h: 28 },
+      { x: 560, y: 416, w: 44, h: 28 },
       { x: 860, y: 416, w: 44, h: 28 },
     ],
   },
